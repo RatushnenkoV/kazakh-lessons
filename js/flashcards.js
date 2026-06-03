@@ -153,14 +153,23 @@ window.KazFlashcards = (function () {
         </div>
       </div>`;
 
-    const learnedPanel  = state.showingLearned ? buildLearnedPanel(deckId) : '';
+    /* Learned view replaces card area */
+    if (state.showingLearned) {
+      container.innerHTML = `
+        <div class="flashcard-tab">
+          ${modebar}${statsHtml}
+          ${buildLearnedPanel(deckId)}
+        </div>`;
+      return;
+    }
+
     const reviewBanner  = state.reviewMode
       ? `<div class="fc-review-banner">🔁 Режим повторения — все карточки, включая выученные, повторяются по кругу</div>`
       : '';
 
     container.innerHTML = `
       <div class="flashcard-tab">
-        ${modebar}${statsHtml}${reviewBanner}${cardHtml}${learnedPanel}
+        ${modebar}${statsHtml}${reviewBanner}${cardHtml}
       </div>`;
   }
 
@@ -169,11 +178,17 @@ window.KazFlashcards = (function () {
     const learned = getLearnedIds(state.lessonId, state.type);
     const learnedCards = state.allCards.filter(c => learned.includes(c.id));
 
+    const backBtn = `
+      <button class="fc-back-btn" onclick="KazFlashcards.toggleLearned('${deckId}')">
+        ← Назад к карточкам
+      </button>`;
+
     if (learnedCards.length === 0) {
       return `
-        <div class="fc-learned-panel">
-          <div class="fc-learned-panel-header">⭐ Выученные карточки</div>
-          <div class="fc-learned-empty">Вы ещё не пометили ни одной карточки как выученную.</div>
+        <div class="fc-learned-view">
+          ${backBtn}
+          <div class="fc-learned-view-title">⭐ Выученные слова</div>
+          <div class="fc-learned-empty">Вы ещё не пометили ни одного слова как выученное.<br>Свайпайте вправо или нажмите «Пометить как выученное».</div>
         </div>`;
     }
 
@@ -181,12 +196,13 @@ window.KazFlashcards = (function () {
       <div class="fc-learned-item">
         <div class="fc-learned-item-kz">${escHtml(c.kz)}</div>
         <div class="fc-learned-item-ru">${escHtml(c.ru)}</div>
-        <button class="fc-unlearn-btn" onclick="KazFlashcards.removeFromLearned('${deckId}', ${c.id})">✕ Убрать</button>
+        <button class="fc-unlearn-btn" onclick="KazFlashcards.removeFromLearned('${deckId}', ${c.id})">✕</button>
       </div>`).join('');
 
     return `
-      <div class="fc-learned-panel">
-        <div class="fc-learned-panel-header">⭐ Выученные карточки (${learnedCards.length})</div>
+      <div class="fc-learned-view">
+        ${backBtn}
+        <div class="fc-learned-view-title">⭐ Выученные слова <span class="fc-learned-view-count">${learnedCards.length}</span></div>
         <div class="fc-learned-list">${items}</div>
       </div>`;
   }
