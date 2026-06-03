@@ -332,7 +332,15 @@ window.KazFlashcards = (function () {
 
   function swipeUnknown(deckId) {
     const state = decks[deckId];
+    const card = state.allCards[state.order[state.currentIdx]];
     state.flipped = false;
+
+    // Remove from learned if it was there
+    if (card) {
+      const learned = getLearnedIds(state.lessonId, state.type);
+      if (learned.includes(card.id)) removeLearned(state.lessonId, state.type, card.id);
+    }
+
     if (state.reviewMode || state.order.length <= 1) { nextCard(deckId); return; }
     // Move card to end of queue so it comes back later
     const cardIdx = state.order.splice(state.currentIdx, 1)[0];
