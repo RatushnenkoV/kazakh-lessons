@@ -117,14 +117,12 @@ window.KazFlashcards = (function () {
             <div class="fc-card-face fc-card-front">
               <div class="fc-card-lang">Қазақша</div>
               <div class="fc-card-text">${escHtml(frontText)}</div>
-              ${cardNote ? `<div class="fc-card-note">${escHtml(cardNote)}</div>` : ''}
               <div class="fc-flip-hint">Нажмите, чтобы перевернуть</div>
               ${isLearned ? `<div class="fc-learned-badge" title="Выучено">⭐</div>` : ''}
             </div>
             <div class="fc-card-face fc-card-back">
               <div class="fc-card-lang">Русский</div>
               <div class="fc-card-text">${escHtml(backText)}</div>
-              ${cardNote ? `<div class="fc-card-note">${escHtml(cardNote)}</div>` : ''}
               ${isLearned ? `<div class="fc-learned-badge" title="Выучено">⭐</div>` : ''}
             </div>
           </div>
