@@ -280,9 +280,12 @@ window.KazFlashcards = (function () {
       }
     };
 
+    // Prevent browser from firing synthetic mouse events after touch
+    const onTouchEnd = e => { e.preventDefault(); onEnd(); };
+
     dragWrap.addEventListener('touchstart', onStart, { passive: true });
     dragWrap.addEventListener('touchmove', onMove, { passive: false });
-    dragWrap.addEventListener('touchend', onEnd);
+    dragWrap.addEventListener('touchend', onTouchEnd);
     dragWrap.addEventListener('mousedown', onStart);
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onEnd);
@@ -290,7 +293,7 @@ window.KazFlashcards = (function () {
     swipeCleanups[deckId] = () => {
       dragWrap.removeEventListener('touchstart', onStart);
       dragWrap.removeEventListener('touchmove', onMove);
-      dragWrap.removeEventListener('touchend', onEnd);
+      dragWrap.removeEventListener('touchend', onTouchEnd);
       dragWrap.removeEventListener('mousedown', onStart);
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onEnd);
