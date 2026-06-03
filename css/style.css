@@ -1556,6 +1556,7 @@ a { color: inherit; text-decoration: none; }
 .fc-drag-wrap {
   position: relative;
   width: 100%;
+  align-self: stretch;
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
