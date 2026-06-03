@@ -43,12 +43,16 @@ window.KazFlashcards = (function () {
      ================================================================ */
   const decks = {}; // deckId → state object
 
-  function initDeck(deckId, lessonId, type, cards, container) {
+  function unlearnedOrder(cards, lessonId, type) {
     const learned = getLearnedIds(lessonId, type);
+    return cards.map((_, i) => i).filter(i => !learned.includes(cards[i].id));
+  }
+
+  function initDeck(deckId, lessonId, type, cards, container) {
     const state = {
       deckId, lessonId, type,
       allCards: cards,
-      order: cards.map((_, i) => i),
+      order: unlearnedOrder(cards, lessonId, type),
       currentIdx: 0,
       flipped: false,
       reviewMode: false,
@@ -97,6 +101,22 @@ window.KazFlashcards = (function () {
           ⭐ Выученные (${learnedCount})
         </button>
       </div>`;
+
+    /* --- All learned screen (learning mode only) --- */
+    if (order.length === 0 && !state.reviewMode) {
+      container.innerHTML = `
+        <div class="flashcard-tab">
+          ${modebar}
+          ${statsHtml}
+          <div class="fc-all-learned">
+            <div class="fc-all-learned-icon">🎉</div>
+            <div class="fc-all-learned-title">Все слова выучены!</div>
+            <div class="fc-all-learned-sub">Переключитесь в режим повторения, чтобы продолжить практику</div>
+            <button class="fc-mode-btn review-mode" onclick="KazFlashcards.setMode('${deckId}', true)" style="margin-top:1rem">🔁 Повторение всего</button>
+          </div>
+        </div>`;
+      return;
+    }
 
     /* --- Current card --- */
     const cardIdx  = order[currentIdx] !== undefined ? order[currentIdx] : 0;
@@ -232,10 +252,19 @@ window.KazFlashcards = (function () {
     const learned = getLearnedIds(state.lessonId, state.type);
     if (learned.includes(card.id)) {
       removeLearned(state.lessonId, state.type, card.id);
+      if (!state.reviewMode) {
+        state.order = unlearnedOrder(state.allCards, state.lessonId, state.type);
+        state.currentIdx = Math.min(state.currentIdx, Math.max(0, state.order.length - 1));
+      }
     } else {
       addLearned(state.lessonId, state.type, card.id);
-      // Animate hearts if marking as learned
       showHearts(deckId);
+      if (!state.reviewMode) {
+        state.order.splice(state.currentIdx, 1);
+        if (state.currentIdx >= state.order.length && state.currentIdx > 0) {
+          state.currentIdx = state.order.length - 1;
+        }
+      }
     }
     rerender(deckId);
   }
@@ -259,10 +288,9 @@ window.KazFlashcards = (function () {
     state.flipped = false;
 
     if (reviewMode) {
-      // Show all cards
       state.order = state.allCards.map((_, i) => i);
     } else {
-      state.order = state.allCards.map((_, i) => i);
+      state.order = unlearnedOrder(state.allCards, state.lessonId, state.type);
     }
     rerender(deckId);
   }
