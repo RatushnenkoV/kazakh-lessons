@@ -113,7 +113,7 @@ window.KazFlashcards = (function () {
         <div class="fc-drag-wrap" id="fc-wrap-${deckId}">
           <div class="fc-swipe-label fc-swipe-know">ЗНАЮ ✓</div>
           <div class="fc-swipe-label fc-swipe-nope">✗ НЕ ЗНАЮ</div>
-          <div class="fc-card-wrap">
+          <div class="fc-card-wrap" onclick="KazFlashcards.flipCard('${deckId}')">
             <div class="fc-card${state.flipped ? ' flipped' : ''}" id="fc-card-${deckId}">
               <div class="fc-card-face fc-card-front">
                 <div class="fc-card-lang">Қазақша</div>
@@ -250,18 +250,6 @@ window.KazFlashcards = (function () {
     };
 
     const onEnd = () => {
-      if (!isDragging) return;
-      isDragging = false;
-
-      if (!hasMoved) {
-        dragWrap.style.transition = '';
-        dragWrap.style.transform = '';
-        if (knowLabel) knowLabel.style.opacity = 0;
-        if (nopeLabel) nopeLabel.style.opacity = 0;
-        flipCard(deckId);
-        return;
-      }
-
       if (currentX > THRESHOLD) {
         dragWrap.style.transition = 'transform .35s ease-in';
         dragWrap.style.transform = `translateX(${window.innerWidth}px) rotate(25deg)`;
@@ -280,15 +268,41 @@ window.KazFlashcards = (function () {
       }
     };
 
-    // Prevent browser from firing synthetic mouse events after touch
-    const onTouchEnd = e => { e.preventDefault(); onEnd(); };
+    const onTouchEnd = e => {
+      if (!isDragging) return;
+      isDragging = false;
+      if (!hasMoved) {
+        // Tap — reset position, let onclick on fc-card-wrap handle flip
+        dragWrap.style.transition = '';
+        dragWrap.style.transform = '';
+        if (knowLabel) knowLabel.style.opacity = 0;
+        if (nopeLabel) nopeLabel.style.opacity = 0;
+        return;
+      }
+      e.preventDefault(); // Only prevent click for actual swipes
+      onEnd();
+    };
+
+    const onMouseEnd = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      if (!hasMoved) {
+        // Click — let onclick on fc-card-wrap handle flip
+        dragWrap.style.transition = '';
+        dragWrap.style.transform = '';
+        if (knowLabel) knowLabel.style.opacity = 0;
+        if (nopeLabel) nopeLabel.style.opacity = 0;
+        return;
+      }
+      onEnd();
+    };
 
     dragWrap.addEventListener('touchstart', onStart, { passive: true });
     dragWrap.addEventListener('touchmove', onMove, { passive: false });
     dragWrap.addEventListener('touchend', onTouchEnd);
     dragWrap.addEventListener('mousedown', onStart);
     document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('mouseup', onMouseEnd);
 
     swipeCleanups[deckId] = () => {
       dragWrap.removeEventListener('touchstart', onStart);
@@ -296,7 +310,7 @@ window.KazFlashcards = (function () {
       dragWrap.removeEventListener('touchend', onTouchEnd);
       dragWrap.removeEventListener('mousedown', onStart);
       document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onEnd);
+      document.removeEventListener('mouseup', onMouseEnd);
     };
   }
 
