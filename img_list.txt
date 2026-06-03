@@ -1,0 +1,10 @@
+﻿python :   File "<string>", line 10
+At line:1 char:34
++ $env:PYTHONIOENCODING = "utf-8"; python -c "
++                                  ~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (  File "<string>", line 10:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    print(f'Page {pi+1}, img {ii+1}: x0={img[" x0\]:.0f},
+                                             ^
+SyntaxError: unterminated string literal (detected at line 10)
