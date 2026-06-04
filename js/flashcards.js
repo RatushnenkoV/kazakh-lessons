@@ -2,26 +2,29 @@
 window.KazFlashcards = (function () {
 
   /* ================================================================
-     STORAGE
+     STORAGE  (rev = true → Рус→Каз direction, separate progress)
      ================================================================ */
-  function storageKey(lessonId, type) { return `kaz-learned-L${lessonId}-${type}`; }
+  function storageKey(lessonId, type, rev) {
+    return `kaz-learned-L${lessonId}-${type}${rev ? '-rev' : ''}`;
+  }
 
-  function getLearnedIds(lessonId, type) {
-    try { return JSON.parse(localStorage.getItem(storageKey(lessonId, type)) || '[]'); }
+  function getLearnedIds(lessonId, type, rev) {
+    try { return JSON.parse(localStorage.getItem(storageKey(lessonId, type, rev)) || '[]'); }
     catch { return []; }
   }
 
-  function saveLearnedIds(lessonId, type, ids) {
-    try { localStorage.setItem(storageKey(lessonId, type), JSON.stringify(ids)); } catch {}
+  function saveLearnedIds(lessonId, type, rev, ids) {
+    try { localStorage.setItem(storageKey(lessonId, type, rev), JSON.stringify(ids)); } catch {}
   }
 
-  function addLearned(lessonId, type, id) {
-    const ids = getLearnedIds(lessonId, type);
-    if (!ids.includes(id)) { ids.push(id); saveLearnedIds(lessonId, type, ids); }
+  function addLearned(lessonId, type, rev, id) {
+    const ids = getLearnedIds(lessonId, type, rev);
+    if (!ids.includes(id)) { ids.push(id); saveLearnedIds(lessonId, type, rev, ids); }
   }
 
-  function removeLearned(lessonId, type, id) {
-    saveLearnedIds(lessonId, type, getLearnedIds(lessonId, type).filter(x => x !== id));
+  function removeLearned(lessonId, type, rev, id) {
+    saveLearnedIds(lessonId, type, rev,
+      getLearnedIds(lessonId, type, rev).filter(x => x !== id));
   }
 
   /* ================================================================
@@ -30,8 +33,8 @@ window.KazFlashcards = (function () {
   const decks = {};
   const swipeCleanups = {};
 
-  function unlearnedOrder(cards, lessonId, type) {
-    const learned = getLearnedIds(lessonId, type);
+  function unlearnedOrder(cards, lessonId, type, rev) {
+    const learned = getLearnedIds(lessonId, type, rev);
     return cards.map((_, i) => i).filter(i => !learned.includes(cards[i].id));
   }
 
@@ -39,7 +42,8 @@ window.KazFlashcards = (function () {
     decks[deckId] = {
       deckId, lessonId, type,
       allCards: cards,
-      order: unlearnedOrder(cards, lessonId, type),
+      reversed: false,
+      order: unlearnedOrder(cards, lessonId, type, false),
       currentIdx: 0,
       flipped: false,
       reviewMode: false,
@@ -54,8 +58,8 @@ window.KazFlashcards = (function () {
      ================================================================ */
   function renderDeck(deckId, container) {
     const state = decks[deckId];
-    const { lessonId, type, allCards, order, currentIdx } = state;
-    const learned = getLearnedIds(lessonId, type);
+    const { lessonId, type, allCards, order, currentIdx, reversed } = state;
+    const learned = getLearnedIds(lessonId, type, reversed);
     const total = allCards.length;
     const learnedCount = learned.length;
 
@@ -77,11 +81,17 @@ window.KazFlashcards = (function () {
         </div>
       </div>`;
 
+    const dirBar = `
+      <div class="fc-dir-bar">
+        <button class="fc-dir-btn${!reversed ? ' active' : ''}" onclick="KazFlashcards.setDirection('${deckId}', false)">Каз → Рус</button>
+        <button class="fc-dir-btn${reversed ? ' active' : ''}" onclick="KazFlashcards.setDirection('${deckId}', true)">Рус → Каз</button>
+      </div>`;
+
     const modebar = `
       <div class="fc-modebar">
         <button class="fc-mode-btn${!state.reviewMode ? ' active' : ''}" onclick="KazFlashcards.setMode('${deckId}', false)">📖 Учить</button>
         <button class="fc-mode-btn review-mode${state.reviewMode ? ' active' : ''}" onclick="KazFlashcards.setMode('${deckId}', true)">🔁 Повторение всего</button>
-        <button class="fc-mode-btn" onclick="KazFlashcards.toggleLearned('${deckId}', event)"
+        <button class="fc-mode-btn" onclick="KazFlashcards.toggleLearned('${deckId}')"
           style="${learnedCount === 0 ? 'opacity:.4' : ''}">⭐ Выученные (${learnedCount})</button>
       </div>`;
 
@@ -89,7 +99,7 @@ window.KazFlashcards = (function () {
     if (order.length === 0 && !state.reviewMode) {
       container.innerHTML = `
         <div class="flashcard-tab">
-          ${modebar}${statsHtml}
+          ${dirBar}${modebar}${statsHtml}
           <div class="fc-all-learned">
             <div class="fc-all-learned-icon">🎉</div>
             <div class="fc-all-learned-title">Все слова выучены!</div>
@@ -100,9 +110,14 @@ window.KazFlashcards = (function () {
       return;
     }
 
-    const cardIdx  = order[currentIdx] !== undefined ? order[currentIdx] : 0;
-    const card     = allCards[cardIdx] || allCards[0];
+    const cardIdx   = order[currentIdx] !== undefined ? order[currentIdx] : 0;
+    const card      = allCards[cardIdx] || allCards[0];
     const isLearned = learned.includes(card.id);
+
+    const frontText = reversed ? card.ru : card.kz;
+    const backText  = reversed ? card.kz : card.ru;
+    const frontLang = reversed ? 'Русский' : 'Қазақша';
+    const backLang  = reversed ? 'Қазақша' : 'Русский';
 
     const cardHtml = `
       <div class="fc-card-area">
@@ -116,14 +131,14 @@ window.KazFlashcards = (function () {
           <div class="fc-card-wrap" onclick="KazFlashcards.flipCard('${deckId}')">
             <div class="fc-card${state.flipped ? ' flipped' : ''}" id="fc-card-${deckId}">
               <div class="fc-card-face fc-card-front">
-                <div class="fc-card-lang">Қазақша</div>
-                <div class="fc-card-text">${escHtml(card.kz)}</div>
+                <div class="fc-card-lang">${frontLang}</div>
+                <div class="fc-card-text">${escHtml(frontText)}</div>
                 <div class="fc-flip-hint">Тап — перевернуть</div>
                 ${isLearned ? `<div class="fc-learned-badge" title="Выучено">⭐</div>` : ''}
               </div>
               <div class="fc-card-face fc-card-back">
-                <div class="fc-card-lang">Русский</div>
-                <div class="fc-card-text">${escHtml(card.ru)}</div>
+                <div class="fc-card-lang">${backLang}</div>
+                <div class="fc-card-text">${escHtml(backText)}</div>
                 ${isLearned ? `<div class="fc-learned-badge" title="Выучено">⭐</div>` : ''}
               </div>
             </div>
@@ -153,29 +168,30 @@ window.KazFlashcards = (function () {
         </div>
       </div>`;
 
-    /* Learned view replaces card area */
+    /* Learned view */
     if (state.showingLearned) {
       container.innerHTML = `
         <div class="flashcard-tab">
-          ${modebar}${statsHtml}
+          ${dirBar}${modebar}${statsHtml}
           ${buildLearnedPanel(deckId)}
         </div>`;
       return;
     }
 
-    const reviewBanner  = state.reviewMode
+    const reviewBanner = state.reviewMode
       ? `<div class="fc-review-banner">🔁 Режим повторения — все карточки, включая выученные, повторяются по кругу</div>`
       : '';
 
     container.innerHTML = `
       <div class="flashcard-tab">
-        ${modebar}${statsHtml}${reviewBanner}${cardHtml}
+        ${dirBar}${modebar}${statsHtml}${reviewBanner}${cardHtml}
       </div>`;
   }
 
   function buildLearnedPanel(deckId) {
     const state = decks[deckId];
-    const learned = getLearnedIds(state.lessonId, state.type);
+    const { lessonId, type, reversed } = state;
+    const learned = getLearnedIds(lessonId, type, reversed);
     const learnedCards = state.allCards.filter(c => learned.includes(c.id));
 
     const backBtn = `
@@ -272,14 +288,13 @@ window.KazFlashcards = (function () {
       if (!isDragging) return;
       isDragging = false;
       if (!hasMoved) {
-        // Tap — reset position, let onclick on fc-card-wrap handle flip
         dragWrap.style.transition = '';
         dragWrap.style.transform = '';
         if (knowLabel) knowLabel.style.opacity = 0;
         if (nopeLabel) nopeLabel.style.opacity = 0;
         return;
       }
-      e.preventDefault(); // Only prevent click for actual swipes
+      e.preventDefault();
       onEnd();
     };
 
@@ -287,7 +302,6 @@ window.KazFlashcards = (function () {
       if (!isDragging) return;
       isDragging = false;
       if (!hasMoved) {
-        // Click — let onclick on fc-card-wrap handle flip
         dragWrap.style.transition = '';
         dragWrap.style.transform = '';
         if (knowLabel) knowLabel.style.opacity = 0;
@@ -318,8 +332,8 @@ window.KazFlashcards = (function () {
     const state = decks[deckId];
     const card = state.allCards[state.order[state.currentIdx]];
     if (!card) { rerender(deckId); return; }
-    const learned = getLearnedIds(state.lessonId, state.type);
-    if (!learned.includes(card.id)) addLearned(state.lessonId, state.type, card.id);
+    const learned = getLearnedIds(state.lessonId, state.type, state.reversed);
+    if (!learned.includes(card.id)) addLearned(state.lessonId, state.type, state.reversed, card.id);
     if (!state.reviewMode) {
       state.order.splice(state.currentIdx, 1);
       if (state.currentIdx >= state.order.length && state.currentIdx > 0) state.currentIdx--;
@@ -334,15 +348,11 @@ window.KazFlashcards = (function () {
     const state = decks[deckId];
     const card = state.allCards[state.order[state.currentIdx]];
     state.flipped = false;
-
-    // Remove from learned if it was there
     if (card) {
-      const learned = getLearnedIds(state.lessonId, state.type);
-      if (learned.includes(card.id)) removeLearned(state.lessonId, state.type, card.id);
+      const learned = getLearnedIds(state.lessonId, state.type, state.reversed);
+      if (learned.includes(card.id)) removeLearned(state.lessonId, state.type, state.reversed, card.id);
     }
-
     if (state.reviewMode || state.order.length <= 1) { nextCard(deckId); return; }
-    // Move card to end of queue so it comes back later
     const cardIdx = state.order.splice(state.currentIdx, 1)[0];
     state.order.push(cardIdx);
     if (state.currentIdx >= state.order.length) state.currentIdx = 0;
@@ -383,15 +393,16 @@ window.KazFlashcards = (function () {
     const state = decks[deckId];
     const card = state.allCards[state.order[state.currentIdx]];
     if (!card) return;
-    const learned = getLearnedIds(state.lessonId, state.type);
+    const { lessonId, type, reversed } = state;
+    const learned = getLearnedIds(lessonId, type, reversed);
     if (learned.includes(card.id)) {
-      removeLearned(state.lessonId, state.type, card.id);
+      removeLearned(lessonId, type, reversed, card.id);
       if (!state.reviewMode) {
-        state.order = unlearnedOrder(state.allCards, state.lessonId, state.type);
+        state.order = unlearnedOrder(state.allCards, lessonId, type, reversed);
         state.currentIdx = Math.min(state.currentIdx, Math.max(0, state.order.length - 1));
       }
     } else {
-      addLearned(state.lessonId, state.type, card.id);
+      addLearned(lessonId, type, reversed, card.id);
       showHearts(deckId);
       if (!state.reviewMode) {
         state.order.splice(state.currentIdx, 1);
@@ -403,11 +414,11 @@ window.KazFlashcards = (function () {
 
   function removeFromLearned(deckId, cardId) {
     const state = decks[deckId];
-    removeLearned(state.lessonId, state.type, cardId);
+    removeLearned(state.lessonId, state.type, state.reversed, cardId);
     rerender(deckId);
   }
 
-  function toggleLearned(deckId, event) {
+  function toggleLearned(deckId) {
     const state = decks[deckId];
     state.showingLearned = !state.showingLearned;
     rerender(deckId);
@@ -420,7 +431,19 @@ window.KazFlashcards = (function () {
     state.flipped = false;
     state.order = reviewMode
       ? state.allCards.map((_, i) => i)
-      : unlearnedOrder(state.allCards, state.lessonId, state.type);
+      : unlearnedOrder(state.allCards, state.lessonId, state.type, state.reversed);
+    rerender(deckId);
+  }
+
+  function setDirection(deckId, reversed) {
+    const state = decks[deckId];
+    if (state.reversed === reversed) return;
+    state.reversed = reversed;
+    state.currentIdx = 0;
+    state.flipped = false;
+    state.reviewMode = false;
+    state.showingLearned = false;
+    state.order = unlearnedOrder(state.allCards, state.lessonId, state.type, reversed);
     rerender(deckId);
   }
 
@@ -491,6 +514,7 @@ window.KazFlashcards = (function () {
     removeFromLearned,
     toggleLearned,
     setMode,
+    setDirection,
     shuffleDeck,
   };
 
