@@ -1446,7 +1446,21 @@ a { color: inherit; text-decoration: none; }
 .lessons-section {
   max-width: 880px;
   margin: 0 auto;
-  padding: 36px 24px 80px;
+  padding: 36px 24px 40px;
+}
+.index-feedback {
+  text-align: center;
+  padding: 0 24px 48px;
+  font-size: .85rem;
+  color: var(--text-muted);
+}
+.index-feedback a {
+  color: var(--secondary);
+  text-decoration: none;
+  font-weight: 700;
+}
+.index-feedback a:hover {
+  text-decoration: underline;
 }
 .lessons-section h2 {
   font-size: 1.2rem;
