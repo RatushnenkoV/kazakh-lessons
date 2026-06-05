@@ -1612,8 +1612,7 @@ a { color: inherit; text-decoration: none; }
   .site-header { padding: 0 14px; gap: 10px; }
   .tabs-nav { padding: 12px 14px 0; }
   .lesson-container { padding: 20px 14px 60px; gap: 20px; }
-  .match-columns { grid-template-columns: 1fr; }
-  .match-column + .match-column { border-top: 1.5px solid var(--border); padding-top: 10px; }
+
   .numbers-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
   .vocab-emoji-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
   .section-body { padding: 14px 14px; }
