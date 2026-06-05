@@ -221,6 +221,23 @@ window.KazComponents = (function () {
   }
 
   /* ============================================================
+     LINK CARD BLOCK (external link, e.g. Telegram)
+     ============================================================ */
+  function renderLinkCard(block) {
+    const url   = esc(block.url);
+    const title = esc(block.title || 'Ссылка');
+    const label = esc(block.label || 'Открыть →');
+    return `
+      <a href="${url}" target="_blank" rel="noopener" class="tg-link-card" aria-label="${title}">
+        <div class="tg-link-icon"></div>
+        <div class="tg-link-text">
+          <div class="tg-link-title">${title}</div>
+          <div class="tg-link-label">${label}</div>
+        </div>
+      </a>`;
+  }
+
+  /* ============================================================
      MAIN DISPATCH: render a single block
      ============================================================ */
   function renderBlock(block) {
@@ -239,6 +256,7 @@ window.KazComponents = (function () {
       case 'vocab-emoji':       return renderVocabEmoji(block);
       case 'callout':           return renderCallout(block);
       case 'video':             return renderVideo(block);
+      case 'link-card':         return renderLinkCard(block);
       case 'exercise':          return ''; // handled separately
       default:
         return `<p style="color:red">Unknown block type: ${esc(block.type)}</p>`;
@@ -276,6 +294,7 @@ window.KazComponents = (function () {
     renderSection,
     renderCallout,
     renderVideo,
+    renderLinkCard,
     esc,
   };
 

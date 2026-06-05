@@ -6,14 +6,14 @@ window.KazExercises = (function () {
 
   /* ---- Color palette for matched pairs ---- */
   const MATCH_COLORS = [
-    { border:'#d4705a', bg:'#fde8e4', text:'#9a2e18' },
+    { border:'#4a8bb5', bg:'#daeaf8', text:'#1a4878' },
     { border:'#6fa086', bg:'#ddf0e8', text:'#205e3a' },
     { border:'#9580c8', bg:'#ede0f8', text:'#4a28a0' },
     { border:'#e9a83a', bg:'#fdf0c8', text:'#7a5808' },
-    { border:'#4a8bb5', bg:'#daeaf8', text:'#1a4878' },
     { border:'#c86a9a', bg:'#f8dce8', text:'#802858' },
     { border:'#52a872', bg:'#d4f0e4', text:'#1e5c3a' },
     { border:'#d48050', bg:'#fce4d0', text:'#7a3818' },
+    { border:'#d4705a', bg:'#fde8e4', text:'#9a2e18' },
   ];
 
   /* Track pair color index per exercise */
@@ -74,8 +74,8 @@ window.KazExercises = (function () {
     const y2 = rRect.top    + rRect.height / 2 - cRect.top;
 
     const gap = Math.abs(x2 - x1);
-    const cx1 = x1 + gap * 0.42;
-    const cx2 = x2 - gap * 0.42;
+    const cx1 = x1 + gap * 0.5;
+    const cx2 = x2 - gap * 0.5;
     const d   = `M${x1},${y1} C${cx1},${y1} ${cx2},${y2} ${x2},${y2}`;
 
     // Path
