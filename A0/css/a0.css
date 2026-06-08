@@ -336,7 +336,33 @@
   margin-bottom: 16px;
 }
 
-/* ── Practice: match-pairs ── */
+/* ── Practice: match-pairs (drag to pair) ── */
+.a0-matched-pairs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  min-height: 4px;
+}
+.a0-matched-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--success-pale);
+  border: 1.5px solid var(--success-light, #b7e4c7);
+  border-radius: var(--r-pill);
+  padding: 6px 14px;
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: var(--success);
+  animation: pair-pop .35s cubic-bezier(.34,1.56,.64,1);
+}
+.a0-handshake { font-size: 1rem; }
+@keyframes pair-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 .a0-pairs-grid {
   display: flex;
   gap: 16px;
@@ -355,23 +381,30 @@
   border: 2.5px solid var(--border);
   border-radius: var(--r-lg);
   background: var(--bg-card);
-  cursor: pointer;
   transition: all 0.15s;
   min-width: 80px;
   text-align: center;
   color: var(--text);
+  user-select: none;
 }
-.pair-item:hover { border-color: var(--secondary); }
+.pair-item.pair-left { cursor: grab; }
+.pair-item.pair-left:active { cursor: grabbing; }
 .pair-item.selected {
   border-color: var(--secondary);
   background: var(--secondary-pale, #e8f4fd);
   color: var(--secondary);
+}
+.pair-item.drag-over-target {
+  border-color: var(--secondary);
+  background: var(--secondary-pale, #e8f4fd);
+  transform: scale(1.06);
 }
 .pair-item.correct {
   border-color: var(--success);
   background: #e8f8f0;
   color: var(--success);
   cursor: default;
+  opacity: .45;
 }
 .pair-item.shake {
   animation: shake 0.4s ease;
@@ -383,14 +416,29 @@
   60%      { transform: translateX(6px); }
 }
 
-/* ── Practice: sort-words ── */
-.a0-sort-card {
+/* ── Practice: sort-words (drag to basket) ── */
+.a0-drag-arena {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 0 16px;
+  min-height: 130px;
+}
+.a0-drag-card {
   background: var(--bg-card);
-  border: 2px solid var(--border);
+  border: 2.5px solid var(--border);
   border-radius: var(--r-xl);
-  padding: 32px 24px;
+  padding: 28px 40px;
   text-align: center;
-  margin-bottom: 20px;
+  cursor: grab;
+  user-select: none;
+  will-change: transform;
+  box-shadow: 0 3px 14px rgba(0,0,0,.08);
+  min-width: 160px;
+}
+.a0-drag-card.dragging {
+  cursor: grabbing;
+  box-shadow: 0 10px 32px rgba(0,0,0,.18);
 }
 .a0-sort-word {
   font-size: 2rem;
@@ -402,27 +450,49 @@
   font-size: .88rem;
   color: var(--text-muted);
 }
-.a0-sort-btns {
+.a0-baskets {
   display: flex;
-  gap: 12px;
+  gap: 14px;
+  margin-bottom: 12px;
 }
-.a0-sort-btn {
+.a0-basket {
   flex: 1;
-  padding: 14px 8px;
-  font-size: .95rem;
-  font-weight: 800;
-  border: 2px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--bg-card);
-  cursor: pointer;
-  transition: all 0.15s;
-  color: var(--text);
+  border: 3px dashed var(--border);
+  border-radius: var(--r-xl);
+  padding: 18px 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: border-color .15s, background .15s, transform .15s;
+  min-height: 96px;
+  justify-content: center;
 }
-.a0-sort-btn:hover:not(:disabled) {
+.a0-basket-emoji { font-size: 2.2rem; line-height: 1; }
+.a0-basket-label { font-size: .8rem; font-weight: 800; color: var(--text-muted); }
+.a0-basket.drag-over {
   border-color: var(--secondary);
-  background: var(--secondary-pale, #e8f4fd);
+  border-style: solid;
+  background: var(--secondary-pale);
+  transform: scale(1.04);
 }
-.a0-sort-btn:disabled { opacity: 0.6; cursor: default; }
+.a0-basket.basket-success {
+  border-color: var(--success);
+  border-style: solid;
+  background: var(--success-pale);
+  animation: basket-pop .4s ease;
+}
+.a0-basket.basket-error {
+  border-color: var(--error);
+  border-style: solid;
+  background: #fde8e8;
+  animation: shake .4s ease;
+}
+@keyframes basket-pop {
+  0%,100% { transform: scale(1); }
+  45% { transform: scale(1.1); }
+}
 
 /* ── Practice: pick-one ── */
 .a0-pick-prompt {

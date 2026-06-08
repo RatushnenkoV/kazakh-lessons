@@ -203,27 +203,27 @@
     }
   }
 
-  // ── Practice: match-pairs ─────────────────────────────────────────────────
-  // Tap item on left → tap item on right to connect. All must be correct.
+  // ── Practice: match-pairs (drag left onto right, matched pairs appear holding hands) ──
   let pairsState = {};
 
   function renderMatchPairs(p) {
     const lefts  = p.pairs.map(pair => pair[0]);
     const rights = shuffle(p.pairs.map(pair => pair[1]));
-    pairsState = { pairs: p.pairs, lefts, rights, selected: null, matched: new Set(), errors: 0 };
+    pairsState = { pairs: p.pairs, lefts, rights, matched: new Set(), errors: 0 };
 
     const leftHtml  = lefts.map((l, i) =>
-      `<button class="pair-item pair-left" data-idx="${i}">${l}</button>`).join('');
-    const rightHtml = rights.map((r, i) =>
-      `<button class="pair-item pair-right" data-val="${r}">${r}</button>`).join('');
+      `<div class="pair-item pair-left" data-idx="${i}" style="touch-action:none;cursor:grab">${l}</div>`).join('');
+    const rightHtml = rights.map(r =>
+      `<div class="pair-item pair-right" data-val="${r}">${r}</div>`).join('');
 
     return `
       <div class="a0-practice-wrap">
-        <div class="a0-practice-icon">🔗</div>
+        <div class="a0-practice-icon">🤝</div>
         <p class="a0-practice-instruction">${p.instruction}</p>
+        <div id="matched-pairs" class="a0-matched-pairs"></div>
         <div class="a0-pairs-grid">
-          <div class="a0-pairs-col">${leftHtml}</div>
-          <div class="a0-pairs-col">${rightHtml}</div>
+          <div class="a0-pairs-col" id="pairs-left">${leftHtml}</div>
+          <div class="a0-pairs-col" id="pairs-right">${rightHtml}</div>
         </div>
         <div id="pairs-feedback" class="a0-practice-feedback"></div>
         <button class="a0-nav-btn" id="btn-next" style="display:none">Продолжить →</button>
@@ -233,51 +233,95 @@
   function attachMatchPairsListeners() {
     const body = document.getElementById('lesson-body');
     if (!body) return;
-    const { pairs, lefts, rights, matched } = pairsState;
+    const { pairs } = pairsState;
+
+    let clone = null;
+    let activeSrc = null;
+    let startX = 0, startY = 0;
+
+    function makeClone(src) {
+      const c = src.cloneNode(true);
+      const r = src.getBoundingClientRect();
+      Object.assign(c.style, {
+        position: 'fixed', left: r.left + 'px', top: r.top + 'px',
+        width: r.width + 'px', margin: '0', pointerEvents: 'none',
+        zIndex: '9999', opacity: '.9', transition: 'none',
+      });
+      c.classList.add('selected');
+      document.body.appendChild(c);
+      return c;
+    }
 
     body.querySelectorAll('.pair-left').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('pointerdown', e => {
         if (btn.classList.contains('correct')) return;
-        body.querySelectorAll('.pair-left').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-        pairsState.selected = parseInt(btn.dataset.idx);
+        activeSrc = btn;
+        startX = e.clientX; startY = e.clientY;
+        btn.setPointerCapture(e.pointerId);
+        btn.style.opacity = '.35';
+        clone = makeClone(btn);
       });
-    });
 
-    body.querySelectorAll('.pair-right').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (btn.classList.contains('correct')) return;
-        if (pairsState.selected === null) return;
+      btn.addEventListener('pointermove', e => {
+        if (!clone) return;
+        clone.style.transform = `translate(${e.clientX - startX}px,${e.clientY - startY}px)`;
+        body.querySelectorAll('.pair-right:not(.correct)').forEach(t => {
+          const r = t.getBoundingClientRect();
+          t.classList.toggle('drag-over-target',
+            e.clientX > r.left && e.clientX < r.right &&
+            e.clientY > r.top  && e.clientY < r.bottom);
+        });
+      });
 
-        const leftIdx  = pairsState.selected;
-        const leftVal  = pairsState.lefts[leftIdx];
-        const rightVal = btn.dataset.val;
-        const correctRight = pairsState.pairs[leftIdx][1];
+      btn.addEventListener('pointerup', e => {
+        if (clone) { clone.remove(); clone = null; }
+        if (!activeSrc) return;
+        activeSrc.style.opacity = '1';
 
-        const leftBtn = body.querySelector(`.pair-left[data-idx="${leftIdx}"]`);
+        let target = null;
+        body.querySelectorAll('.pair-right:not(.correct)').forEach(t => {
+          t.classList.remove('drag-over-target');
+          const r = t.getBoundingClientRect();
+          if (e.clientX > r.left && e.clientX < r.right &&
+              e.clientY > r.top  && e.clientY < r.bottom) target = t;
+        });
 
-        if (rightVal === correctRight) {
-          leftBtn.classList.add('correct'); leftBtn.classList.remove('selected');
-          btn.classList.add('correct');
-          pairsState.matched.add(leftIdx);
-          pairsState.selected = null;
+        if (target) {
+          const leftIdx = parseInt(activeSrc.dataset.idx);
+          const rightVal = target.dataset.val;
+          if (rightVal === pairs[leftIdx][1]) {
+            activeSrc.classList.add('correct');
+            target.classList.add('correct');
+            pairsState.matched.add(leftIdx);
 
-          if (pairsState.matched.size === pairsState.pairs.length) {
-            const fb = document.getElementById('pairs-feedback');
-            if (fb) fb.textContent = pairsState.errors === 0 ? '🎉 Отлично! Все пары верны!' : '✓ Готово!';
-            const nx = document.getElementById('btn-next');
-            if (nx) nx.style.display = '';
+            const el = document.createElement('div');
+            el.className = 'a0-matched-pair';
+            el.innerHTML = `${activeSrc.textContent} <span class="a0-handshake">🤝</span> ${target.textContent}`;
+            document.getElementById('matched-pairs')?.appendChild(el);
+
+            if (pairsState.matched.size === pairs.length) {
+              const fb = document.getElementById('pairs-feedback');
+              if (fb) fb.textContent = pairsState.errors === 0 ? '🎉 Отлично! Все пары верны!' : '✓ Готово!';
+              document.getElementById('btn-next').style.display = '';
+            }
+          } else {
+            pairsState.errors++;
+            activeSrc.classList.add('shake'); target.classList.add('shake');
+            setTimeout(() => { activeSrc?.classList.remove('shake'); target.classList.remove('shake'); }, 500);
           }
-        } else {
-          pairsState.errors++;
-          leftBtn.classList.add('shake'); btn.classList.add('shake');
-          setTimeout(() => { leftBtn.classList.remove('shake'); btn.classList.remove('shake'); }, 500);
         }
+        activeSrc = null;
+      });
+
+      btn.addEventListener('lostpointercapture', () => {
+        if (clone) { clone.remove(); clone = null; }
+        if (activeSrc) activeSrc.style.opacity = '1';
+        activeSrc = null;
       });
     });
   }
 
-  // ── Practice: sort-words ──────────────────────────────────────────────────
+  // ── Practice: sort-words (drag card into basket) ─────────────────────────
   let sortState = {};
 
   function renderSortWords(p) {
@@ -301,16 +345,23 @@
 
     return `
       <div class="a0-practice-wrap">
-        <div class="a0-practice-icon">🗂️</div>
         <p class="a0-practice-instruction">${p.instruction}</p>
         <div class="a0-sort-progress">${progress}</div>
-        <div class="a0-sort-card">
-          <div class="a0-sort-word">${item.word}</div>
-          <div class="a0-sort-hint">${item.hint}</div>
+        <div class="a0-drag-arena">
+          <div class="a0-drag-card" id="drag-card" style="touch-action:none">
+            <div class="a0-sort-word">${item.word}</div>
+            <div class="a0-sort-hint">${item.hint}</div>
+          </div>
         </div>
-        <div class="a0-sort-btns">
-          <button class="a0-sort-btn" data-choice="0">${p.groups[0]}</button>
-          <button class="a0-sort-btn" data-choice="1">${p.groups[1]}</button>
+        <div class="a0-baskets">
+          <div class="a0-basket" id="basket-0" data-choice="0">
+            <div class="a0-basket-emoji">🧱</div>
+            <div class="a0-basket-label">${p.groups[0]}</div>
+          </div>
+          <div class="a0-basket" id="basket-1" data-choice="1">
+            <div class="a0-basket-emoji">🪶</div>
+            <div class="a0-basket-label">${p.groups[1]}</div>
+          </div>
         </div>
         <div id="sort-feedback" class="a0-practice-feedback"></div>
       </div>`;
@@ -322,31 +373,85 @@
     const step = steps[stepIdx];
     const p = step.data;
 
-    body.querySelectorAll('.a0-sort-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const choice  = parseInt(btn.dataset.choice);
-        const item    = sortState.items[sortState.idx];
-        const correct = choice === item.correct;
-        if (correct) sortState.score++;
+    const nx = document.getElementById('btn-next');
+    if (nx) nx.addEventListener('click', goNext);
 
-        const fb = document.getElementById('sort-feedback');
-        if (fb) {
-          fb.textContent = correct ? '✓ Верно!' : `✗ Это ${p.groups[item.correct].replace(/[💪🌸]/g,'').trim()}`;
-          fb.className = 'a0-practice-feedback ' + (correct ? 'correct' : 'wrong');
-        }
+    const card = document.getElementById('drag-card');
+    if (!card) return;
 
-        body.querySelectorAll('.a0-sort-btn').forEach(b => b.disabled = true);
+    let startX = 0, startY = 0, active = false;
 
-        setTimeout(() => {
-          sortState.idx++;
-          body.innerHTML = renderSortCard(p);
-          attachSortWordsListeners();
-        }, 900);
+    card.addEventListener('pointerdown', e => {
+      startX = e.clientX; startY = e.clientY;
+      active = true;
+      card.setPointerCapture(e.pointerId);
+      card.classList.add('dragging');
+    });
+
+    card.addEventListener('pointermove', e => {
+      if (!active) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      const rot = Math.max(-14, Math.min(14, dx * 0.06));
+      card.style.transform = `translate(${dx}px,${dy}px) rotate(${rot}deg)`;
+      body.querySelectorAll('.a0-basket').forEach(b => {
+        const r = b.getBoundingClientRect();
+        b.classList.toggle('drag-over',
+          e.clientX > r.left && e.clientX < r.right &&
+          e.clientY > r.top  && e.clientY < r.bottom);
       });
     });
 
-    const nx = document.getElementById('btn-next');
-    if (nx) nx.addEventListener('click', goNext);
+    function settle(e) {
+      if (!active) return;
+      active = false;
+      card.classList.remove('dragging');
+
+      let chosen = null;
+      body.querySelectorAll('.a0-basket').forEach(b => {
+        b.classList.remove('drag-over');
+        const r = b.getBoundingClientRect();
+        if (e.clientX > r.left && e.clientX < r.right &&
+            e.clientY > r.top  && e.clientY < r.bottom) chosen = b;
+      });
+
+      if (!chosen) {
+        card.style.transition = 'transform .35s cubic-bezier(.34,1.56,.64,1)';
+        card.style.transform = '';
+        setTimeout(() => { card.style.transition = ''; }, 400);
+        return;
+      }
+
+      const item = sortState.items[sortState.idx];
+      const correct = parseInt(chosen.dataset.choice) === item.correct;
+      if (correct) sortState.score++;
+
+      const fb = document.getElementById('sort-feedback');
+      if (fb) {
+        fb.textContent = correct ? '✓ Верно!' : `✗ Это ${p.groups[item.correct]}`;
+        fb.className = 'a0-practice-feedback ' + (correct ? 'correct' : 'wrong');
+      }
+
+      chosen.classList.add(correct ? 'basket-success' : 'basket-error');
+      if (correct) {
+        card.style.transition = 'transform .2s ease, opacity .3s ease';
+        card.style.opacity = '0';
+        card.style.transform += ' scale(0.4)';
+      } else {
+        card.style.transition = 'transform .35s cubic-bezier(.34,1.56,.64,1)';
+        card.style.transform = '';
+        setTimeout(() => { card.style.transition = ''; }, 400);
+      }
+
+      setTimeout(() => {
+        sortState.idx++;
+        body.innerHTML = renderSortCard(p);
+        attachSortWordsListeners();
+      }, 900);
+    }
+
+    card.addEventListener('pointerup', settle);
+    card.addEventListener('lostpointercapture', () => { active = false; });
   }
 
   // ── Practice: pick-one ────────────────────────────────────────────────────
