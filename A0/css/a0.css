@@ -464,11 +464,12 @@
 /* ── Kaz-tili.kz content styles ── */
 .kaz-content table {
   border-collapse: collapse;
-  width: 100%;
   margin: 12px 0;
   font-size: .9rem;
-  overflow-x: auto;
   display: block;
+  overflow-x: auto;
+  max-width: 100%;
+  white-space: nowrap;
 }
 .kaz-content table td, .kaz-content table th {
   border: 1px solid var(--border);
@@ -618,6 +619,27 @@
 .a0-match-item.selected { border-color: var(--secondary); background: var(--secondary-pale); box-shadow: 0 0 0 2px var(--secondary); }
 .a0-match-item.matched  { border-color: var(--success); background: var(--success-pale); color: var(--success); cursor: default; }
 .a0-match-item.wrong    { border-color: var(--error); background: var(--error-pale); animation: shake .3s; }
+
+/* ── Back button ── */
+.a0-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: .85rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 20px;
+  transition: var(--transition);
+}
+.a0-back-btn:hover {
+  border-color: var(--secondary);
+  color: var(--secondary);
+}
 
 /* ── Navigation button ── */
 .a0-nav-btn {

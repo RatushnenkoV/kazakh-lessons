@@ -103,6 +103,18 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  function goPrev() {
+    if (stepIdx <= 0) return;
+    stepIdx--;
+    renderStep();
+    updateProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function renderBackBtn() {
+    return `<button class="a0-back-btn" id="btn-prev">← Назад</button>`;
+  }
+
   // ── Render dispatcher ─────────────────────────────────────────────────────
   function renderStep() {
     const body = document.getElementById('lesson-body');
@@ -110,19 +122,29 @@
     const step = steps[stepIdx];
     if (!step) return;
 
+    let html = '';
     switch (step.type) {
-      case 'intro':       body.innerHTML = renderIntro();              break;
-      case 'theory':      body.innerHTML = renderTheory(step.data);   break;
-      case 'practice':    body.innerHTML = renderPractice(step.data); break;
-      case 'explanation': body.innerHTML = renderExplanation();        break;
-      case 'video':       body.innerHTML = renderVideo();              break;
-      case 'vocab':       initVocab(); body.innerHTML = renderVocabFrame(); break;
-      case 'exercise':    body.innerHTML = renderExercise();           break;
-      case 'complete':    markDone(section.id); body.innerHTML = renderComplete(); break;
+      case 'intro':       html = renderIntro();              break;
+      case 'theory':      html = renderTheory(step.data);   break;
+      case 'practice':    html = renderPractice(step.data); break;
+      case 'explanation': html = renderExplanation();        break;
+      case 'video':       html = renderVideo();              break;
+      case 'vocab':       initVocab(); html = renderVocabFrame(); break;
+      case 'exercise':    html = renderExercise();           break;
+      case 'complete':    markDone(section.id); html = renderComplete(); break;
     }
+
+    // Prepend back button on all steps except intro and complete
+    if (stepIdx > 0 && step.type !== 'complete') {
+      html = renderBackBtn() + html;
+    }
+
+    body.innerHTML = html;
 
     // Attach event listeners after render
     attachListeners(step.type);
+    const prevBtn = document.getElementById('btn-prev');
+    if (prevBtn) prevBtn.addEventListener('click', goPrev);
   }
 
   // ── Step: Intro ────────────────────────────────────────────────────────────
