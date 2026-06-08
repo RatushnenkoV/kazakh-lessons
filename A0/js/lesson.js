@@ -71,12 +71,16 @@
   }
   function isSeen(sid, widx) { return getSeenSet().has(wordKey(sid, widx)); }
 
-  // Words from this section not yet shown in any lesson (max 20, shuffled)
+  // Words from this section not yet shown, OR shown but never answered correctly
   function getNewWords(sec) {
     if (!sec.words || !sec.words.length) return [];
+    const store = getWordStore();
     const fresh = sec.words
       .map((w, i) => ({ ...w, sid: sec.id, widx: i }))
-      .filter(w => !isSeen(w.sid, w.widx));
+      .filter(w => {
+        if (!isSeen(w.sid, w.widx)) return true;
+        return (store[wordKey(w.sid, w.widx)] || { correct: 0 }).correct === 0;
+      });
     return shuffle(fresh).slice(0, 20);
   }
 
@@ -247,9 +251,10 @@
   // ── Step: Practice (dispatcher) ──────────────────────────────────────────
   function renderPractice(p) {
     switch (p.type) {
-      case 'match-pairs': return renderMatchPairs(p);
-      case 'sort-words':  return renderSortWords(p);
-      case 'pick-one':    return renderPickOne(p);
+      case 'match-pairs':  return renderMatchPairs(p);
+      case 'sort-words':   return renderSortWords(p);
+      case 'find-letters': return renderFindLetters(p);
+      case 'pick-one':     return renderPickOne(p);
       default: return `<button class="a0-nav-btn" id="btn-next">Продолжить →</button>`;
     }
   }

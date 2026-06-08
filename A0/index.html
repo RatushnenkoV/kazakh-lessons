@@ -33,8 +33,31 @@
         <!-- Rendered by path.js -->
         <div class="a0-loading">Загрузка уроков…</div>
       </div>
+
+      <!-- Reset section -->
+      <div class="a0-reset-section">
+        <p class="a0-reset-label">Для сброса прогресса введи фразу ниже</p>
+        <input type="text" id="reset-input" class="a0-reset-input"
+               placeholder="Сбросить весь прогресс" autocomplete="off" spellcheck="false" />
+        <button id="reset-confirm-btn" class="a0-reset-confirm-btn" style="display:none">🗑 Сбросить всё</button>
+      </div>
     </div>
 
+  </div>
+
+  <!-- Floating review button (shown when unlearned words exist) -->
+  <button class="a0-float-btn" id="review-btn" style="display:none" title="Повторить невыученные слова">
+    📚
+    <span class="a0-float-badge" id="review-badge">0</span>
+  </button>
+
+  <!-- Review modal -->
+  <div class="a0-modal" id="review-modal" style="display:none">
+    <div class="a0-modal-header">
+      <h3>Повторение слов</h3>
+      <button class="a0-modal-close" id="review-close">✕</button>
+    </div>
+    <div class="a0-modal-body" id="review-body"></div>
   </div>
 
   <script src="js/path.js"></script>

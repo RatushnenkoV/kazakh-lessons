@@ -5,6 +5,8 @@
 
   const DATA_URL  = 'kaz-content/grammar_full.json';
   const STORE_KEY = 'a0-progress';
+  const WORDS_KEY = 'a0-words';
+  const SEEN_KEY  = 'a0-seen';
 
   const COLORS = [
     ['#58cc02','#46a302'],
@@ -192,6 +194,244 @@
 
   window.addEventListener('resize', scheduleRender);
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function shufflePath(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // ── Unlearned words (seen but never correctly answered) ────────────────────
+  function getUnlearnedWords() {
+    let seen, store;
+    try { seen = new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); } catch { seen = new Set(); }
+    try { store = JSON.parse(localStorage.getItem(WORDS_KEY) || '{}'); } catch { store = {}; }
+    const result = [];
+    for (const sec of sections) {
+      if (!sec.words) continue;
+      sec.words.forEach((w, i) => {
+        const key = `${sec.id}:${i}`;
+        if (!seen.has(key)) return;
+        const rec = store[key] || { correct: 0 };
+        if (rec.correct === 0) result.push({ ...w, sid: sec.id, widx: i });
+      });
+    }
+    return result;
+  }
+
+  function updateReviewBadge() {
+    const words = getUnlearnedWords();
+    const btn   = document.getElementById('review-btn');
+    const badge = document.getElementById('review-badge');
+    if (!btn) return;
+    if (words.length > 0) {
+      btn.style.display = 'flex';
+      if (badge) badge.textContent = words.length;
+    } else {
+      btn.style.display = 'none';
+    }
+  }
+
+  function recordWordInModal(sid, widx, correct) {
+    try {
+      const store = JSON.parse(localStorage.getItem(WORDS_KEY) || '{}');
+      const key   = `${sid}:${widx}`;
+      const rec   = store[key] || { correct: 0, wrong: 0 };
+      if (correct) rec.correct++; else rec.wrong++;
+      store[key] = rec;
+      localStorage.setItem(WORDS_KEY, JSON.stringify(store));
+    } catch {}
+  }
+
+  // ── Review modal ───────────────────────────────────────────────────────────
+  const reviewState = { queue: [], flipped: false };
+
+  function openReviewModal() {
+    const words = getUnlearnedWords();
+    if (words.length === 0) return;
+    reviewState.queue   = shufflePath(words.map(w => ({ ...w, dir: Math.random() < .5 ? 'kaz' : 'ru' })));
+    reviewState.flipped = false;
+    const modal = document.getElementById('review-modal');
+    if (modal) modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    const body = document.getElementById('review-body');
+    if (body) { body.innerHTML = renderReviewCardHtml(); attachReviewCardListeners(); }
+  }
+
+  function closeReviewModal() {
+    const modal = document.getElementById('review-modal');
+    if (modal) modal.style.display = 'none';
+    document.body.style.overflow = '';
+    updateReviewBadge();
+  }
+
+  function renderReviewCardHtml() {
+    if (reviewState.queue.length === 0) {
+      return `
+        <div style="text-align:center;padding:40px 0">
+          <div style="font-size:3.5rem;margin-bottom:16px">🎉</div>
+          <div style="font-size:1.2rem;font-weight:900;margin-bottom:8px">Все повторены!</div>
+          <div style="font-size:.9rem;color:var(--text-muted);font-weight:600;margin-bottom:28px">
+            Слова, отмеченные «Знаю», больше не будут попадаться
+          </div>
+          <button class="a0-nav-btn" id="modal-done-btn" style="max-width:280px;margin:0 auto">Закрыть</button>
+        </div>`;
+    }
+    const item = reviewState.queue[0];
+    const front = item.dir === 'kaz' ? item.kaz : item.ru;
+    const back  = item.dir === 'kaz' ? item.ru  : item.kaz;
+    const frontLang = item.dir === 'kaz' ? '🇰🇿 Казахский' : '🇷🇺 Русский';
+    const backLang  = item.dir === 'kaz' ? '🇷🇺 Русский'   : '🇰🇿 Казахский';
+    return `
+      <div style="text-align:center;margin-bottom:8px">
+        <span style="font-size:.82rem;font-weight:700;color:var(--text-light)">осталось ${reviewState.queue.length}</span>
+      </div>
+      <div class="fc-drag-wrap" id="rev-drag" style="touch-action:none">
+        <div class="fc-swipe-label fc-swipe-know">ЗНАЮ ✓</div>
+        <div class="fc-swipe-label fc-swipe-nope">✗ НЕ ЗНАЮ</div>
+        <div class="fc-card-wrap">
+          <div class="fc-card" id="rev-card">
+            <div class="fc-card-face fc-card-front">
+              <div class="fc-card-lang">${frontLang}</div>
+              <div class="fc-card-text">${front}</div>
+              <div class="fc-flip-hint">Тап — перевернуть</div>
+            </div>
+            <div class="fc-card-face fc-card-back">
+              <div class="fc-card-lang">${backLang}</div>
+              <div class="fc-card-text">${back}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="fc-swipe-hint-row" style="margin-bottom:12px">
+        <span class="fc-hint-nope">← Не знаю</span>
+        <span class="fc-hint-know">Знаю →</span>
+      </div>
+      <div id="rev-actions" style="display:none;gap:10px">
+        <button class="a0-nav-btn" id="btn-rev-wrong" style="background:var(--error);flex:1;margin-top:0">✗ Не знаю</button>
+        <button class="a0-nav-btn" id="btn-rev-know"  style="background:var(--success);flex:1;margin-top:0">✓ Знаю!</button>
+      </div>`;
+  }
+
+  function attachReviewCardListeners() {
+    const body     = document.getElementById('review-body');
+    const dragWrap = document.getElementById('rev-drag');
+    const card     = document.getElementById('rev-card');
+
+    const doneBtn = document.getElementById('modal-done-btn');
+    if (doneBtn) doneBtn.addEventListener('click', closeReviewModal);
+    if (!dragWrap || !card) return;
+
+    const THRESHOLD = 80;
+    let startX = 0, currentX = 0, active = false, hasMoved = false;
+    const knowLabel = dragWrap.querySelector('.fc-swipe-know');
+    const nopeLabel = dragWrap.querySelector('.fc-swipe-nope');
+
+    function revKnow() {
+      const item = reviewState.queue.shift();
+      if (item) recordWordInModal(item.sid, item.widx, true);
+      reviewState.flipped = false;
+      updateReviewBadge();
+      if (body) { body.innerHTML = renderReviewCardHtml(); attachReviewCardListeners(); }
+    }
+
+    function revWrong() {
+      const item = reviewState.queue.shift();
+      if (item) {
+        reviewState.queue.push({ ...item, dir: item.dir === 'kaz' ? 'ru' : 'kaz' });
+        recordWordInModal(item.sid, item.widx, false);
+      }
+      reviewState.flipped = false;
+      if (body) { body.innerHTML = renderReviewCardHtml(); attachReviewCardListeners(); }
+    }
+
+    dragWrap.addEventListener('pointerdown', e => {
+      if (e.target.closest('button')) return;
+      startX = e.clientX; currentX = 0;
+      active = true; hasMoved = false;
+      dragWrap.setPointerCapture(e.pointerId);
+      dragWrap.style.transition = 'none';
+    });
+
+    dragWrap.addEventListener('pointermove', e => {
+      if (!active) return;
+      const dx = e.clientX - startX;
+      if (Math.abs(dx) > 8) hasMoved = true;
+      currentX = dx;
+      dragWrap.style.transform = `translateX(${dx}px) rotate(${dx * 0.06}deg)`;
+      const ratio = Math.min(Math.abs(dx) / THRESHOLD, 1);
+      if (knowLabel) knowLabel.style.opacity = dx > 0 ? ratio : 0;
+      if (nopeLabel) nopeLabel.style.opacity = dx < 0 ? ratio : 0;
+    });
+
+    dragWrap.addEventListener('pointerup', () => {
+      if (!active) return;
+      active = false;
+      if (!hasMoved) {
+        dragWrap.style.transition = '';
+        dragWrap.style.transform  = '';
+        if (!reviewState.flipped) {
+          reviewState.flipped = true;
+          card.classList.add('flipped');
+          const actions = document.getElementById('rev-actions');
+          if (actions) actions.style.display = 'flex';
+        }
+        return;
+      }
+      if (currentX > THRESHOLD) {
+        dragWrap.style.transition = 'transform .35s ease-in';
+        dragWrap.style.transform  = `translateX(${window.innerWidth}px) rotate(25deg)`;
+        if (knowLabel) knowLabel.style.opacity = 1;
+        setTimeout(revKnow, 350);
+      } else if (currentX < -THRESHOLD) {
+        dragWrap.style.transition = 'transform .35s ease-in';
+        dragWrap.style.transform  = `translateX(-${window.innerWidth}px) rotate(-25deg)`;
+        if (nopeLabel) nopeLabel.style.opacity = 1;
+        setTimeout(revWrong, 350);
+      } else {
+        dragWrap.style.transition = 'transform .3s cubic-bezier(.25,.8,.25,1)';
+        dragWrap.style.transform  = '';
+        if (knowLabel) knowLabel.style.opacity = 0;
+        if (nopeLabel) nopeLabel.style.opacity = 0;
+      }
+    });
+
+    dragWrap.addEventListener('lostpointercapture', () => { active = false; });
+
+    const btnKnow  = document.getElementById('btn-rev-know');
+    const btnWrong = document.getElementById('btn-rev-wrong');
+    if (btnKnow)  btnKnow.addEventListener('click', revKnow);
+    if (btnWrong) btnWrong.addEventListener('click', revWrong);
+  }
+
+  // ── Reset progress ─────────────────────────────────────────────────────────
+  function setupResetConfirm() {
+    const input = document.getElementById('reset-input');
+    const btn   = document.getElementById('reset-confirm-btn');
+    if (!input || !btn) return;
+
+    input.addEventListener('input', () => {
+      btn.style.display = input.value.trim() === 'Сбросить весь прогресс' ? 'block' : 'none';
+    });
+
+    btn.addEventListener('click', () => {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('a0-')) keys.push(k);
+      }
+      keys.forEach(k => localStorage.removeItem(k));
+      progress = {};
+      input.value = '';
+      btn.style.display = 'none';
+      render();
+      updateReviewBadge();
+    });
+  }
+
   async function init() {
     loadProgress();
     try {
@@ -199,11 +439,18 @@
       const data = await resp.json();
       sections = data.sections;
       render();
+      updateReviewBadge();
     } catch (e) {
       const list = document.getElementById('a0-path-list');
       if (list) list.innerHTML = '<div class="a0-loading">Ошибка загрузки данных.</div>';
       console.error(e);
     }
+
+    const reviewBtn   = document.getElementById('review-btn');
+    const reviewClose = document.getElementById('review-close');
+    if (reviewBtn)   reviewBtn.addEventListener('click', openReviewModal);
+    if (reviewClose) reviewClose.addEventListener('click', closeReviewModal);
+    setupResetConfirm();
   }
 
   document.addEventListener('DOMContentLoaded', init);
