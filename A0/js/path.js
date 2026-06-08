@@ -18,11 +18,12 @@
 
   // Layout constants
   const NODE_SPACING   = 100;  // vertical px between consecutive nodes
-  const CHAPTER_GAP    = 56;   // extra px for chapter banner before first node
+  const CHAPTER_GAP    = 84;   // px from band top to first node center (must exceed BANNER_H + NODE_R)
+  const BANNER_HALF    = 18;   // half of banner pill height — used to straddle section boundaries
   const WAVELENGTH     = 380;  // px for one full sine period
   const AMPLITUDE_FRAC = 0.27; // fraction of container width for sine amplitude
   const MAX_AMPLITUDE  = 110;  // px cap
-  const PADDING_TOP    = 20;
+  const PADDING_TOP    = 0;
   const PADDING_BOTTOM = 80;
   const NODE_R         = 32;   // radius of node circle (= circle diameter / 2)
 
@@ -88,9 +89,11 @@
     let y = PADDING_TOP;
     const items = [];   // { type, y, data, color }
     let nodeNum = 0;
+    let isFirstGroup = true;
 
     for (const { nodes, color } of groups) {
-      items.push({ type: 'banner', y, color, title: nodes[0].title });
+      items.push({ type: 'banner', y, color, title: nodes[0].title, isFirst: isFirstGroup });
+      isFirstGroup = false;
       y += CHAPTER_GAP;
       for (const s of nodes) {
         items.push({ type: 'node', y, color, data: s, num: ++nodeNum });
@@ -145,7 +148,8 @@
     for (const item of items) {
       const [bg, sh] = item.color;
       if (item.type === 'banner') {
-        nodeHtml += `<div class="map-banner-abs" style="top:${item.y}px;color:${bg};background:${hexAlpha(bg, 0.12)};border-color:${hexAlpha(bg, 0.4)}">${item.title}</div>`;
+        const bannerTop = item.isFirst ? item.y : item.y - BANNER_HALF;
+        nodeHtml += `<div class="map-banner-abs" style="top:${bannerTop}px;color:${bg};background:${hexAlpha(bg, 0.12)};border-color:${hexAlpha(bg, 0.4)}">${item.title}</div>`;
       } else {
         const s = item.data;
         const status = getStatus(s, ordered);

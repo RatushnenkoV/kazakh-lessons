@@ -490,7 +490,7 @@
    ============================================================ */
 
 /* Outer list — owns the width, map-container fills it */
-.a0-path-list { overflow: hidden; }
+.a0-path-list { overflow: visible; }
 
 .map-container {
   position: relative;
