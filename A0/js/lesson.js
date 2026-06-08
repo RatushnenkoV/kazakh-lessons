@@ -654,55 +654,129 @@
     const item = vocabPreQueue[0];
     const front = item.dir === 'kaz' ? item.kaz : item.ru;
     const back  = item.dir === 'kaz' ? item.ru  : item.kaz;
-    const flag  = item.dir === 'kaz' ? '🇰🇿 → 🇷🇺' : '🇷🇺 → 🇰🇿';
+    const frontLang = item.dir === 'kaz' ? '🇰🇿 Казахский' : '🇷🇺 Русский';
+    const backLang  = item.dir === 'kaz' ? '🇷🇺 Русский'   : '🇰🇿 Казахский';
     return `
-      <div style="text-align:center;margin-bottom:6px">
-        <span class="a0-sort-progress">${flag} · осталось ${vocabPreQueue.length}</span>
+      <div style="text-align:center;margin-bottom:8px">
+        <span class="a0-sort-progress">осталось ${vocabPreQueue.length}</span>
       </div>
-      <div class="a0-vocab-card" id="vpc" style="cursor:pointer">
-        <div id="vpc-front">${front}</div>
-        <div id="vpc-back" style="display:none;font-size:1.2rem;color:var(--text-muted);margin-top:12px">${back}</div>
-        <div id="vpc-hint" style="font-size:.78rem;color:var(--text-light);margin-top:14px;font-weight:600">Нажми чтобы перевернуть</div>
+      <div class="fc-drag-wrap" id="vpc-drag" style="touch-action:none">
+        <div class="fc-swipe-label fc-swipe-know">ЗНАЮ ✓</div>
+        <div class="fc-swipe-label fc-swipe-nope">✗ НЕ ЗНАЮ</div>
+        <div class="fc-card-wrap">
+          <div class="fc-card" id="vpc">
+            <div class="fc-card-face fc-card-front">
+              <div class="fc-card-lang">${frontLang}</div>
+              <div class="fc-card-text">${front}</div>
+              <div class="fc-flip-hint">Тап — перевернуть</div>
+            </div>
+            <div class="fc-card-face fc-card-back">
+              <div class="fc-card-lang">${backLang}</div>
+              <div class="fc-card-text">${back}</div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div id="vpc-actions" style="display:none;gap:10px;margin-top:12px">
-        <button class="a0-nav-btn" id="btn-pre-wrong" style="background:var(--error);flex:1;margin-top:0">Не знаю</button>
-        <button class="a0-nav-btn" id="btn-pre-know"  style="background:var(--success);flex:1;margin-top:0">Знаю!</button>
+      <div class="fc-swipe-hint-row" style="margin-bottom:12px">
+        <span class="fc-hint-nope">← Не знаю</span>
+        <span class="fc-hint-know">Знаю →</span>
+      </div>
+      <div id="vpc-actions" style="display:none;gap:10px">
+        <button class="a0-nav-btn" id="btn-pre-wrong" style="background:var(--error);flex:1;margin-top:0">✗ Не знаю</button>
+        <button class="a0-nav-btn" id="btn-pre-know"  style="background:var(--success);flex:1;margin-top:0">✓ Знаю!</button>
       </div>`;
   }
 
   function attachVocabPreListeners() {
-    const area = document.getElementById('vocab-pre-area');
+    const area     = document.getElementById('vocab-pre-area');
+    const dragWrap = document.getElementById('vpc-drag');
+    const card     = document.getElementById('vpc');
+    const btnNext  = document.getElementById('btn-next');
 
-    const card = document.getElementById('vpc');
-    if (card) card.addEventListener('click', () => {
-      if (vocabPreFlipped) return;
-      vocabPreFlipped = true;
-      document.getElementById('vpc-back').style.display = 'block';
-      document.getElementById('vpc-hint').style.display = 'none';
-      const actions = document.getElementById('vpc-actions');
-      if (actions) actions.style.display = 'flex';
+    if (btnNext) btnNext.addEventListener('click', goNext);
+    if (!dragWrap || !card) return;
+
+    const THRESHOLD = 80;
+    let startX = 0, currentX = 0, active = false, hasMoved = false;
+    const knowLabel = dragWrap.querySelector('.fc-swipe-know');
+    const nopeLabel = dragWrap.querySelector('.fc-swipe-nope');
+
+    function preKnow() {
+      const item = vocabPreQueue.shift();
+      if (item) recordWord(item.sid, item.widx, true);
+      vocabPreFlipped = false;
+      if (area) { area.innerHTML = renderVocabPreCard(); attachVocabPreListeners(); }
+    }
+
+    function preWrong() {
+      const item = vocabPreQueue.shift();
+      if (item) {
+        vocabPreQueue.push({ ...item, dir: item.dir === 'kaz' ? 'ru' : 'kaz' });
+        recordWord(item.sid, item.widx, false);
+      }
+      vocabPreFlipped = false;
+      if (area) { area.innerHTML = renderVocabPreCard(); attachVocabPreListeners(); }
+    }
+
+    dragWrap.addEventListener('pointerdown', e => {
+      if (e.target.closest('button')) return;
+      startX = e.clientX; currentX = 0;
+      active = true; hasMoved = false;
+      dragWrap.setPointerCapture(e.pointerId);
+      dragWrap.style.transition = 'none';
     });
+
+    dragWrap.addEventListener('pointermove', e => {
+      if (!active) return;
+      const dx = e.clientX - startX;
+      if (Math.abs(dx) > 8) hasMoved = true;
+      currentX = dx;
+      dragWrap.style.transform = `translateX(${dx}px) rotate(${dx * 0.06}deg)`;
+      const ratio = Math.min(Math.abs(dx) / THRESHOLD, 1);
+      if (knowLabel) knowLabel.style.opacity = dx > 0 ? ratio : 0;
+      if (nopeLabel) nopeLabel.style.opacity = dx < 0 ? ratio : 0;
+    });
+
+    dragWrap.addEventListener('pointerup', () => {
+      if (!active) return;
+      active = false;
+
+      if (!hasMoved) {
+        dragWrap.style.transition = '';
+        dragWrap.style.transform = '';
+        if (!vocabPreFlipped) {
+          vocabPreFlipped = true;
+          card.classList.add('flipped');
+          const actions = document.getElementById('vpc-actions');
+          if (actions) actions.style.display = 'flex';
+        }
+        return;
+      }
+
+      if (currentX > THRESHOLD) {
+        dragWrap.style.transition = 'transform .35s ease-in';
+        dragWrap.style.transform = `translateX(${window.innerWidth}px) rotate(25deg)`;
+        if (knowLabel) knowLabel.style.opacity = 1;
+        setTimeout(preKnow, 350);
+      } else if (currentX < -THRESHOLD) {
+        dragWrap.style.transition = 'transform .35s ease-in';
+        dragWrap.style.transform = `translateX(-${window.innerWidth}px) rotate(-25deg)`;
+        if (nopeLabel) nopeLabel.style.opacity = 1;
+        setTimeout(preWrong, 350);
+      } else {
+        dragWrap.style.transition = 'transform .3s cubic-bezier(.25,.8,.25,1)';
+        dragWrap.style.transform = '';
+        if (knowLabel) knowLabel.style.opacity = 0;
+        if (nopeLabel) nopeLabel.style.opacity = 0;
+      }
+    });
+
+    dragWrap.addEventListener('lostpointercapture', () => { active = false; });
 
     const btnKnow  = document.getElementById('btn-pre-know');
     const btnWrong = document.getElementById('btn-pre-wrong');
-    const btnNext  = document.getElementById('btn-next');
-
-    if (btnKnow) btnKnow.addEventListener('click', () => {
-      const item = vocabPreQueue.shift();
-      recordWord(item.sid, item.widx, true);
-      vocabPreFlipped = false;
-      if (area) { area.innerHTML = renderVocabPreCard(); attachVocabPreListeners(); }
-    });
-
-    if (btnWrong) btnWrong.addEventListener('click', () => {
-      const item = vocabPreQueue.shift();
-      vocabPreQueue.push({ ...item, dir: item.dir === 'kaz' ? 'ru' : 'kaz' });
-      recordWord(item.sid, item.widx, false);
-      vocabPreFlipped = false;
-      if (area) { area.innerHTML = renderVocabPreCard(); attachVocabPreListeners(); }
-    });
-
-    if (btnNext) btnNext.addEventListener('click', goNext);
+    if (btnKnow)  btnKnow.addEventListener('click', preKnow);
+    if (btnWrong) btnWrong.addEventListener('click', preWrong);
   }
 
   // ── Vocab: end-of-lesson review (5 learned words, one pass) ──────────────
@@ -731,56 +805,126 @@
     const item = vocabReviewQueue[0];
     const front = item.dir === 'kaz' ? item.kaz : item.ru;
     const back  = item.dir === 'kaz' ? item.ru  : item.kaz;
-    const flag  = item.dir === 'kaz' ? '🇰🇿 → 🇷🇺' : '🇷🇺 → 🇰🇿';
-    const remaining = vocabReviewQueue.length;
+    const frontLang = item.dir === 'kaz' ? '🇰🇿 Казахский' : '🇷🇺 Русский';
+    const backLang  = item.dir === 'kaz' ? '🇷🇺 Русский'   : '🇰🇿 Казахский';
     return `
-      <div style="text-align:center;margin-bottom:6px">
-        <span class="a0-sort-progress">${flag} · ${remaining} осталось</span>
+      <div style="text-align:center;margin-bottom:8px">
+        <span class="a0-sort-progress">осталось ${vocabReviewQueue.length}</span>
       </div>
-      <div class="a0-vocab-card" id="vrc" style="cursor:pointer">
-        <div id="vrc-front">${front}</div>
-        <div id="vrc-back" style="display:none;font-size:1.2rem;color:var(--text-muted);margin-top:12px">${back}</div>
-        <div id="vrc-hint" style="font-size:.78rem;color:var(--text-light);margin-top:14px;font-weight:600">Нажми чтобы перевернуть</div>
+      <div class="fc-drag-wrap" id="vrc-drag" style="touch-action:none">
+        <div class="fc-swipe-label fc-swipe-know">ЗНАЮ ✓</div>
+        <div class="fc-swipe-label fc-swipe-nope">✗ НЕ ЗНАЮ</div>
+        <div class="fc-card-wrap">
+          <div class="fc-card" id="vrc">
+            <div class="fc-card-face fc-card-front">
+              <div class="fc-card-lang">${frontLang}</div>
+              <div class="fc-card-text">${front}</div>
+              <div class="fc-flip-hint">Тап — перевернуть</div>
+            </div>
+            <div class="fc-card-face fc-card-back">
+              <div class="fc-card-lang">${backLang}</div>
+              <div class="fc-card-text">${back}</div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div id="vrc-actions" style="display:none;gap:10px;margin-top:12px">
-        <button class="a0-nav-btn" id="btn-rev-wrong" style="background:var(--error);flex:1;margin-top:0">Не знаю</button>
-        <button class="a0-nav-btn" id="btn-rev-know"  style="background:var(--success);flex:1;margin-top:0">Знаю!</button>
+      <div class="fc-swipe-hint-row" style="margin-bottom:12px">
+        <span class="fc-hint-nope">← Не знаю</span>
+        <span class="fc-hint-know">Знаю →</span>
+      </div>
+      <div id="vrc-actions" style="display:none;gap:10px">
+        <button class="a0-nav-btn" id="btn-rev-wrong" style="background:var(--error);flex:1;margin-top:0">✗ Не знаю</button>
+        <button class="a0-nav-btn" id="btn-rev-know"  style="background:var(--success);flex:1;margin-top:0">✓ Знаю!</button>
       </div>`;
   }
 
   function attachVocabReviewListeners() {
-    const area = document.getElementById('vocab-review-area');
+    const area     = document.getElementById('vocab-review-area');
+    const dragWrap = document.getElementById('vrc-drag');
+    const card     = document.getElementById('vrc');
+    const btnNext  = document.getElementById('btn-next');
 
-    const card = document.getElementById('vrc');
-    if (card) card.addEventListener('click', () => {
-      if (vocabReviewFlipped) return;
-      vocabReviewFlipped = true;
-      document.getElementById('vrc-back').style.display = 'block';
-      document.getElementById('vrc-hint').style.display = 'none';
-      const actions = document.getElementById('vrc-actions');
-      if (actions) actions.style.display = 'flex';
+    if (btnNext) btnNext.addEventListener('click', goNext);
+    if (!dragWrap || !card) return;
+
+    const THRESHOLD = 80;
+    let startX = 0, currentX = 0, active = false, hasMoved = false;
+    const knowLabel = dragWrap.querySelector('.fc-swipe-know');
+    const nopeLabel = dragWrap.querySelector('.fc-swipe-nope');
+
+    function reviewKnow() {
+      const item = vocabReviewQueue.shift();
+      if (item) recordWord(item.sid, item.widx, true);
+      vocabReviewFlipped = false;
+      if (area) { area.innerHTML = renderVocabReviewCard(); attachVocabReviewListeners(); }
+    }
+
+    function reviewWrong() {
+      const item = vocabReviewQueue.shift();
+      if (item) recordWord(item.sid, item.widx, false);
+      vocabReviewFlipped = false;
+      if (area) { area.innerHTML = renderVocabReviewCard(); attachVocabReviewListeners(); }
+    }
+
+    dragWrap.addEventListener('pointerdown', e => {
+      if (e.target.closest('button')) return;
+      startX = e.clientX; currentX = 0;
+      active = true; hasMoved = false;
+      dragWrap.setPointerCapture(e.pointerId);
+      dragWrap.style.transition = 'none';
     });
+
+    dragWrap.addEventListener('pointermove', e => {
+      if (!active) return;
+      const dx = e.clientX - startX;
+      if (Math.abs(dx) > 8) hasMoved = true;
+      currentX = dx;
+      dragWrap.style.transform = `translateX(${dx}px) rotate(${dx * 0.06}deg)`;
+      const ratio = Math.min(Math.abs(dx) / THRESHOLD, 1);
+      if (knowLabel) knowLabel.style.opacity = dx > 0 ? ratio : 0;
+      if (nopeLabel) nopeLabel.style.opacity = dx < 0 ? ratio : 0;
+    });
+
+    dragWrap.addEventListener('pointerup', () => {
+      if (!active) return;
+      active = false;
+
+      if (!hasMoved) {
+        dragWrap.style.transition = '';
+        dragWrap.style.transform = '';
+        if (!vocabReviewFlipped) {
+          vocabReviewFlipped = true;
+          card.classList.add('flipped');
+          const actions = document.getElementById('vrc-actions');
+          if (actions) actions.style.display = 'flex';
+        }
+        return;
+      }
+
+      if (currentX > THRESHOLD) {
+        dragWrap.style.transition = 'transform .35s ease-in';
+        dragWrap.style.transform = `translateX(${window.innerWidth}px) rotate(25deg)`;
+        if (knowLabel) knowLabel.style.opacity = 1;
+        setTimeout(reviewKnow, 350);
+      } else if (currentX < -THRESHOLD) {
+        dragWrap.style.transition = 'transform .35s ease-in';
+        dragWrap.style.transform = `translateX(-${window.innerWidth}px) rotate(-25deg)`;
+        if (nopeLabel) nopeLabel.style.opacity = 1;
+        setTimeout(reviewWrong, 350);
+      } else {
+        dragWrap.style.transition = 'transform .3s cubic-bezier(.25,.8,.25,1)';
+        dragWrap.style.transform = '';
+        if (knowLabel) knowLabel.style.opacity = 0;
+        if (nopeLabel) nopeLabel.style.opacity = 0;
+      }
+    });
+
+    dragWrap.addEventListener('lostpointercapture', () => { active = false; });
 
     const btnKnow  = document.getElementById('btn-rev-know');
     const btnWrong = document.getElementById('btn-rev-wrong');
-    const btnNext  = document.getElementById('btn-next');
-
-    if (btnKnow) btnKnow.addEventListener('click', () => {
-      const item = vocabReviewQueue.shift();
-      recordWord(item.sid, item.widx, true);
-      vocabReviewFlipped = false;
-      if (area) { area.innerHTML = renderVocabReviewCard(); attachVocabReviewListeners(); }
-    });
-
-    if (btnWrong) btnWrong.addEventListener('click', () => {
-      const item = vocabReviewQueue.shift();
-      // Wrong on review: don't re-add, just record
-      recordWord(item.sid, item.widx, false);
-      vocabReviewFlipped = false;
-      if (area) { area.innerHTML = renderVocabReviewCard(); attachVocabReviewListeners(); }
-    });
-
-    if (btnNext) btnNext.addEventListener('click', goNext);
+    if (btnKnow)  btnKnow.addEventListener('click', reviewKnow);
+    if (btnWrong) btnWrong.addEventListener('click', reviewWrong);
   }
 
   // ── Audio playback ────────────────────────────────────────────────────────
