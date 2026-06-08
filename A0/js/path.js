@@ -1,15 +1,21 @@
 /* ===== A0 LESSON PATH ===== */
-/* Loads grammar_parsed.json, renders lesson list with progress */
 
 (function () {
   'use strict';
 
   const DATA_URL  = 'kaz-content/grammar_parsed.json';
-  const STORE_KEY = 'a0-progress'; // { sectionId: 'done' }
+  const STORE_KEY = 'a0-progress';
 
-  // ── Chapters: group parentId=null sections as chapter headers ──────────────
-  // Subsections (parentId != null) appear under their parent inline.
-  // We display them indented within the same chapter.
+  const COLORS = [
+    ['#58cc02','#46a302'],
+    ['#1cb0f6','#0e8bc7'],
+    ['#ff9600','#cc7800'],
+    ['#ce82ff','#9c44e8'],
+    ['#ff4b4b','#d92b2b'],
+    ['#00b8a9','#008a7e'],
+    ['#ffc800','#cc9f00'],
+  ];
+  const POSITIONS = ['center', 'right', 'center', 'left'];
 
   let sections = [];
   let progress = {};
@@ -21,36 +27,22 @@
 
   function isDone(id) { return progress[id] === 'done'; }
 
-  // Build ordered list: top-level sections, each followed by their children
-  function buildOrder(rawSections) {
-    const tops = rawSections.filter(s => !s.parentId);
+  function buildOrder(raw) {
+    const tops = raw.filter(s => !s.parentId);
     const result = [];
     for (const top of tops) {
       result.push({ ...top, isTop: true });
-      const children = rawSections.filter(s => s.parentId === top.id);
-      for (const child of children) {
-        result.push({ ...child, isTop: false });
-      }
+      raw.filter(s => s.parentId === top.id).forEach(c => result.push({ ...c, isTop: false }));
     }
     return result;
   }
 
-  function getStatus(section, orderedList) {
+  function getStatus(section, ordered) {
     if (isDone(section.id)) return 'done';
-    // First section is always available; others unlock after previous is done
-    const idx = orderedList.findIndex(s => s.id === section.id);
+    const idx = ordered.findIndex(s => s.id === section.id);
     if (idx === 0) return 'available';
-    const prev = orderedList[idx - 1];
-    if (isDone(prev.id)) return 'available';
+    if (isDone(ordered[idx - 1].id)) return 'available';
     return 'locked';
-  }
-
-  function metaText(section) {
-    const parts = [];
-    if (section.words.length)     parts.push(`${section.words.length} слов`);
-    if (section.sentences.length) parts.push(`${section.sentences.length} примеров`);
-    if (section.relatedVideos.length) parts.push('Видео');
-    return parts.join(' · ') || 'Объяснение';
   }
 
   function render() {
@@ -59,50 +51,60 @@
     if (!list) return;
 
     const ordered = buildOrder(sections);
-    const total = ordered.length;
-    const done  = ordered.filter(s => isDone(s.id)).length;
+    const done = ordered.filter(s => isDone(s.id)).length;
+    if (statsEl) statsEl.textContent = `${done} / ${ordered.length} пройдено`;
 
-    if (statsEl) statsEl.textContent = `${done} / ${total} пройдено`;
-
-    // Track current chapter for labels
-    let currentChapter = null;
-    let num = 0;
-    const rows = [];
-
-    for (const section of ordered) {
-      num++;
-      const status = getStatus(section, ordered);
-
-      // Chapter label for top-level sections
-      if (section.isTop) {
-        currentChapter = section;
+    // Group into chapters by top-level section
+    const groups = [];
+    for (const s of ordered) {
+      if (s.isTop) {
+        groups.push({ nodes: [s], color: COLORS[groups.length % COLORS.length] });
+      } else {
+        groups[groups.length - 1].nodes.push(s);
       }
-
-      const statusIcon = status === 'done'      ? '✓'
-                       : status === 'available' ? '→'
-                       : '🔒';
-      const statusClass = status === 'done'      ? 'completed'
-                        : status === 'available' ? 'active-next'
-                        : 'locked';
-
-      const href = status !== 'locked'
-        ? `lesson.html?id=${section.id}`
-        : '#';
-
-      const indent = section.isTop ? '' : 'a0-lesson-row--sub';
-
-      rows.push(`
-        <a href="${href}" class="a0-lesson-row ${statusClass} ${indent}">
-          <div class="a0-lesson-num">${status === 'done' ? '✓' : num}</div>
-          <div class="a0-lesson-info">
-            <div class="a0-lesson-title">${section.title}</div>
-            <div class="a0-lesson-meta">${metaText(section)}</div>
-          </div>
-          <div class="a0-lesson-status">${statusIcon}</div>
-        </a>`);
     }
 
-    list.innerHTML = rows.join('');
+    let posIdx = 0;
+    let num = 0;
+    const html = [];
+
+    for (const { nodes, color } of groups) {
+      const [bg, sh] = color;
+
+      html.push(`<div class="map-banner" style="background:${bg}20;border-color:${bg}55;color:${bg}">${nodes[0].title}</div>`);
+
+      for (let i = 0; i < nodes.length; i++) {
+        const s = nodes[i];
+        num++;
+        const pos = POSITIONS[posIdx % POSITIONS.length];
+        posIdx++;
+        const status = getStatus(s, ordered);
+        const href = status !== 'locked' ? `lesson.html?id=${s.id}` : null;
+        const content = status === 'done' ? '✓' : num;
+
+        const circleStyle =
+          status === 'done'   ? 'background:#58cc02;box-shadow:0 5px 0 #46a302' :
+          status === 'locked' ? 'background:#e5e7eb;box-shadow:0 5px 0 #c4c9d4;color:#9ca3af' :
+          `background:${bg};box-shadow:0 5px 0 ${sh}`;
+
+        const tag = href ? 'a' : 'div';
+        const hrefStr = href ? ` href="${href}"` : '';
+
+        html.push(`
+          <div class="map-node-row pos-${pos}">
+            <${tag}${hrefStr} class="map-node ${status}">
+              <div class="map-node-circle" style="${circleStyle}">${content}</div>
+              <div class="map-node-label">${s.title}</div>
+            </${tag}>
+          </div>`);
+
+        if (i < nodes.length - 1) {
+          html.push(`<div class="map-seg" style="background:${bg}"></div>`);
+        }
+      }
+    }
+
+    list.innerHTML = html.join('');
   }
 
   async function init() {

@@ -68,11 +68,11 @@
   padding: 24px 24px 60px;
 }
 
-/* ── Lesson list ── */
+/* ── Lesson map ── */
 .a0-path-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: block;
+  max-width: 480px;
+  margin: 0 auto;
 }
 
 .a0-chapter-label {
@@ -481,4 +481,92 @@
   .a0-explanation { padding: 18px; }
   .a0-step-intro h2 { font-size: 1.5rem; }
   .a0-match-pairs { grid-template-columns: 1fr 1fr; gap: 6px; }
+}
+
+/* ============================================================
+   MAP PATH STYLES
+   ============================================================ */
+
+.map-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 24px 0 14px;
+  padding: 7px 20px;
+  border: 2px solid;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  text-align: center;
+}
+.map-banner:first-child { margin-top: 8px; }
+
+.map-node-row {
+  display: flex;
+  padding: 0 24px;
+}
+.map-node-row.pos-left   { justify-content: flex-start; }
+.map-node-row.pos-center { justify-content: center; }
+.map-node-row.pos-right  { justify-content: flex-end; }
+
+.map-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: inherit;
+  width: 90px;
+}
+.map-node.locked { cursor: default; pointer-events: none; }
+
+.map-node-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #fff;
+  transition: transform .12s, box-shadow .12s;
+  position: relative;
+  z-index: 1;
+}
+.map-node:not(.locked):hover .map-node-circle {
+  transform: translateY(-3px);
+}
+.map-node:not(.locked):active .map-node-circle {
+  transform: translateY(4px);
+}
+.map-node.available .map-node-circle {
+  animation: map-bounce 2s ease-in-out infinite;
+}
+@keyframes map-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-7px); }
+}
+
+.map-node-label {
+  font-size: .69rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.3;
+  max-width: 90px;
+  word-break: break-word;
+}
+.map-node.done      .map-node-label { color: #46a302; }
+.map-node.available .map-node-label { color: var(--text); font-weight: 800; }
+.map-node.locked    .map-node-label { color: var(--text-light); opacity: .6; }
+
+.map-seg {
+  width: 4px;
+  height: 22px;
+  border-radius: 2px;
+  margin: 2px auto;
+  opacity: .3;
 }
