@@ -275,6 +275,51 @@
 .a0-explanation p { margin-bottom: 12px; }
 .a0-explanation p:last-child { margin-bottom: 0; }
 
+/* ── Kaz-tili.kz content styles ── */
+.kaz-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+  font-size: .9rem;
+  overflow-x: auto;
+  display: block;
+}
+.kaz-content table td, .kaz-content table th {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  vertical-align: top;
+}
+.kaz-content .kaz {
+  font-weight: 700;
+  color: var(--secondary);
+}
+.kaz-content .se {
+  color: var(--text-muted);
+  font-size: .9em;
+}
+.kaz-content u { text-decoration: underline; }
+
+/* Audio play button */
+.play-audio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: var(--secondary);
+  color: #fff;
+  font-size: .8rem;
+  cursor: pointer;
+  vertical-align: middle;
+  margin: 0 2px;
+  flex-shrink: 0;
+  transition: background var(--transition), transform 0.1s;
+}
+.play-audio:hover { background: var(--secondary-dark, #1a6fba); transform: scale(1.1); }
+.play-audio:active { transform: scale(0.95); }
+
 /* ── Step: Flashcards (vocabulary) ── */
 .a0-vocab-header {
   text-align: center;

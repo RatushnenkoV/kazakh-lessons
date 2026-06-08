@@ -135,21 +135,29 @@
 
   // ── Step: Explanation ─────────────────────────────────────────────────────
   function renderExplanation() {
-    const text = section.explanation || '';
-    // Split into paragraphs on double-space or numbered items or known markers
-    const paras = text
-      .replace(/(\d+\))/g, '\n$1')   // newline before '1)', '2)'
-      .replace(/([А-ЯЁ]{2,}:)/g, '\n$1') // newline before UPPERCASE labels
-      .split(/\n+/)
-      .map(p => p.trim())
-      .filter(p => p.length > 10);
-
-    const html = paras.map(p => `<p>${p}</p>`).join('');
+    const html = section.explanationHtml || '';
 
     return `
       <h3 style="font-size:1.2rem;font-weight:900;margin-bottom:20px">${section.title}</h3>
-      <div class="a0-explanation">${html || '<p>Раздел без текстового объяснения. Смотри видео.</p>'}</div>
+      <div class="a0-explanation kaz-content">${html || '<p>Раздел без текстового объяснения. Смотри видео.</p>'}</div>
       <button class="a0-nav-btn" id="btn-next">Продолжить →</button>`;
+  }
+
+  // ── Audio playback ────────────────────────────────────────────────────────
+  function attachAudioListeners() {
+    const body = document.getElementById('lesson-body');
+    if (!body) return;
+    let currentAudio = null;
+    body.querySelectorAll('.play-audio').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const src = btn.dataset.src;
+        if (!src) return;
+        if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+        const audio = new Audio(src);
+        currentAudio = audio;
+        audio.play().catch(() => {});
+      });
+    });
   }
 
   // ── Step: Video ───────────────────────────────────────────────────────────
@@ -440,8 +448,9 @@
     const btn = document.getElementById('btn-next');
     if (btn && type !== 'vocab') btn.addEventListener('click', goNext);
 
-    if (type === 'vocab')     attachVocabListeners();
-    if (type === 'exercise')  attachExerciseListeners();
+    if (type === 'vocab')       attachVocabListeners();
+    if (type === 'exercise')    attachExerciseListeners();
+    if (type === 'explanation') attachAudioListeners();
 
     if (type === 'video') {
       // Load video URL from videocourse data
