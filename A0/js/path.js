@@ -1,4 +1,4 @@
-/* ===== A0 LESSON PATH ===== */
+/* ===== A0 LESSON PATH — sinusoidal map ===== */
 
 (function () {
   'use strict';
@@ -15,16 +15,25 @@
     ['#00b8a9','#008a7e'],
     ['#ffc800','#cc9f00'],
   ];
-  const POSITIONS = ['center', 'right', 'center', 'left'];
+
+  // Layout constants
+  const NODE_SPACING   = 72;   // vertical px between consecutive nodes
+  const CHAPTER_GAP    = 54;   // extra px for chapter banner before first node
+  const WAVELENGTH     = 360;  // px for one full sine period
+  const AMPLITUDE_FRAC = 0.27; // fraction of container width for sine amplitude
+  const MAX_AMPLITUDE  = 110;  // px cap
+  const PADDING_TOP    = 20;
+  const PADDING_BOTTOM = 80;
+  const NODE_R         = 32;   // radius of node circle (= circle diameter / 2)
 
   let sections = [];
   let progress = {};
+  let renderScheduled = false;
 
   function loadProgress() {
     try { progress = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }
     catch { progress = {}; }
   }
-
   function isDone(id) { return progress[id] === 'done'; }
 
   function buildOrder(raw) {
@@ -45,7 +54,13 @@
     return 'locked';
   }
 
+  function hexAlpha(hex, a) {
+    const byte = Math.round(a * 255).toString(16).padStart(2, '0');
+    return hex + byte;
+  }
+
   function render() {
+    renderScheduled = false;
     const list = document.getElementById('a0-path-list');
     const statsEl = document.getElementById('a0-stats');
     if (!list) return;
@@ -54,58 +69,113 @@
     const done = ordered.filter(s => isDone(s.id)).length;
     if (statsEl) statsEl.textContent = `${done} / ${ordered.length} пройдено`;
 
-    // Group into chapters by top-level section
+    // Group by chapter
     const groups = [];
     for (const s of ordered) {
-      if (s.isTop) {
-        groups.push({ nodes: [s], color: COLORS[groups.length % COLORS.length] });
-      } else {
-        groups[groups.length - 1].nodes.push(s);
-      }
+      if (s.isTop) groups.push({ nodes: [s], color: COLORS[groups.length % COLORS.length] });
+      else groups[groups.length - 1].nodes.push(s);
     }
 
-    let posIdx = 0;
-    let num = 0;
-    const html = [];
+    const cw = list.offsetWidth || 380;
+    const cx = cw / 2;
+    const amp = Math.min(cw * AMPLITUDE_FRAC, MAX_AMPLITUDE);
+
+    function sineX(y) {
+      return cx + amp * Math.sin(y / WAVELENGTH * 2 * Math.PI);
+    }
+
+    // ── Compute y-positions for all items ──────────────────────────────────
+    let y = PADDING_TOP;
+    const items = [];   // { type, y, data, color }
+    let nodeNum = 0;
 
     for (const { nodes, color } of groups) {
-      const [bg, sh] = color;
+      items.push({ type: 'banner', y, color, title: nodes[0].title });
+      y += CHAPTER_GAP;
+      for (const s of nodes) {
+        items.push({ type: 'node', y, color, data: s, num: ++nodeNum });
+        y += NODE_SPACING;
+      }
+    }
+    const totalHeight = y + PADDING_BOTTOM;
 
-      html.push(`<div class="map-banner" style="background:${bg}20;border-color:${bg}55;color:${bg}">${nodes[0].title}</div>`);
+    // ── Chapter background bands & SVG paths ───────────────────────────────
+    let bandHtml = '';
+    let svgPaths = '';
 
-      for (let i = 0; i < nodes.length; i++) {
-        const s = nodes[i];
-        num++;
-        const pos = POSITIONS[posIdx % POSITIONS.length];
-        posIdx++;
+    let gi = 0;
+    let bandTop = PADDING_TOP;
+    for (const { nodes, color } of groups) {
+      const [bg] = color;
+      const nodesCount = nodes.length;
+      const bandBottom = bandTop + CHAPTER_GAP + nodesCount * NODE_SPACING - NODE_SPACING * 0.4;
+
+      // Background band
+      bandHtml += `<div class="map-band" style="top:${bandTop.toFixed(0)}px;height:${(bandBottom - bandTop).toFixed(0)}px;background:${hexAlpha(bg, 0.10)}"></div>`;
+
+      // Sine path for this chapter (from first to last node y)
+      const pStart = bandTop + CHAPTER_GAP;
+      const pEnd   = pStart + (nodesCount - 1) * NODE_SPACING;
+      if (nodesCount > 1) {
+        let d = '';
+        for (let py = pStart; py <= pEnd + 2; py += 3) {
+          const px = sineX(py);
+          d += d === '' ? `M${px.toFixed(1)},${py}` : ` L${px.toFixed(1)},${py}`;
+        }
+        svgPaths += `<path d="${d}" fill="none" stroke="${bg}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>`;
+      }
+
+      bandTop += CHAPTER_GAP + nodesCount * NODE_SPACING;
+      gi++;
+    }
+
+    // ── Node & banner HTML ─────────────────────────────────────────────────
+    let nodeHtml = '';
+    for (const item of items) {
+      const [bg, sh] = item.color;
+      if (item.type === 'banner') {
+        nodeHtml += `<div class="map-banner-abs" style="top:${item.y}px;color:${bg};background:${hexAlpha(bg, 0.12)};border-color:${hexAlpha(bg, 0.4)}">${item.title}</div>`;
+      } else {
+        const s = item.data;
         const status = getStatus(s, ordered);
         const href = status !== 'locked' ? `lesson.html?id=${s.id}` : null;
-        const content = status === 'done' ? '✓' : num;
+        const content = status === 'done' ? '✓' : item.num;
+        const nx = sineX(item.y).toFixed(1);
+        const ny = (item.y - NODE_R).toFixed(1);
 
         const circleStyle =
-          status === 'done'   ? 'background:#58cc02;box-shadow:0 5px 0 #46a302' :
-          status === 'locked' ? 'background:#e5e7eb;box-shadow:0 5px 0 #c4c9d4;color:#9ca3af' :
+          status === 'done'   ? `background:#58cc02;box-shadow:0 5px 0 #46a302` :
+          status === 'locked' ? `background:#e5e7eb;box-shadow:0 5px 0 #c4c9d4;color:#9ca3af` :
           `background:${bg};box-shadow:0 5px 0 ${sh}`;
 
         const tag = href ? 'a' : 'div';
         const hrefStr = href ? ` href="${href}"` : '';
 
-        html.push(`
-          <div class="map-node-row pos-${pos}">
-            <${tag}${hrefStr} class="map-node ${status}">
-              <div class="map-node-circle" style="${circleStyle}">${content}</div>
-              <div class="map-node-label">${s.title}</div>
-            </${tag}>
-          </div>`);
-
-        if (i < nodes.length - 1) {
-          html.push(`<div class="map-seg" style="background:${bg}"></div>`);
-        }
+        nodeHtml += `<${tag}${hrefStr} class="map-node ${status}" style="left:${nx}px;top:${ny}px">
+          <div class="map-node-circle" style="${circleStyle}">${content}</div>
+          <div class="map-node-label">${s.title}</div>
+        </${tag}>`;
       }
     }
 
-    list.innerHTML = html.join('');
+    list.innerHTML = `
+      <div class="map-container" style="height:${totalHeight}px">
+        ${bandHtml}
+        <svg class="map-svg" viewBox="0 0 ${cw} ${totalHeight}" preserveAspectRatio="none" style="width:${cw}px;height:${totalHeight}px">
+          ${svgPaths}
+        </svg>
+        ${nodeHtml}
+      </div>`;
   }
+
+  function scheduleRender() {
+    if (!renderScheduled) {
+      renderScheduled = true;
+      requestAnimationFrame(render);
+    }
+  }
+
+  window.addEventListener('resize', scheduleRender);
 
   async function init() {
     loadProgress();
