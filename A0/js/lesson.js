@@ -65,10 +65,21 @@
   function buildSteps(sec) {
     const list = [];
     list.push({ type: 'intro' });
-    list.push({ type: 'explanation' });
-    if (sec.relatedVideos.length) list.push({ type: 'video' });
-    if (sec.words.length)         list.push({ type: 'vocab' });
-    if (sec.sentences.length >= 3) list.push({ type: 'exercise' });
+
+    if (sec.steps && sec.steps.length > 0) {
+      // Custom multi-step mode: theory → practice pairs
+      for (const s of sec.steps) {
+        list.push({ type: 'theory', data: s });
+        if (s.practice) list.push({ type: 'practice', data: s.practice });
+      }
+    } else {
+      // Legacy single explanation
+      list.push({ type: 'explanation' });
+      if (sec.relatedVideos.length)  list.push({ type: 'video' });
+      if (sec.words.length)          list.push({ type: 'vocab' });
+      if (sec.sentences.length >= 3) list.push({ type: 'exercise' });
+    }
+
     list.push({ type: 'complete' });
     return list;
   }
@@ -100,11 +111,13 @@
     if (!step) return;
 
     switch (step.type) {
-      case 'intro':       body.innerHTML = renderIntro();       break;
-      case 'explanation': body.innerHTML = renderExplanation(); break;
-      case 'video':       body.innerHTML = renderVideo();       break;
+      case 'intro':       body.innerHTML = renderIntro();              break;
+      case 'theory':      body.innerHTML = renderTheory(step.data);   break;
+      case 'practice':    body.innerHTML = renderPractice(step.data); break;
+      case 'explanation': body.innerHTML = renderExplanation();        break;
+      case 'video':       body.innerHTML = renderVideo();              break;
       case 'vocab':       initVocab(); body.innerHTML = renderVocabFrame(); break;
-      case 'exercise':    body.innerHTML = renderExercise();    break;
+      case 'exercise':    body.innerHTML = renderExercise();           break;
       case 'complete':    markDone(section.id); body.innerHTML = renderComplete(); break;
     }
 
@@ -141,6 +154,253 @@
       <h3 style="font-size:1.2rem;font-weight:900;margin-bottom:20px">${section.title}</h3>
       <div class="a0-explanation kaz-content">${html || '<p>Раздел без текстового объяснения. Смотри видео.</p>'}</div>
       <button class="a0-nav-btn" id="btn-next">Продолжить →</button>`;
+  }
+
+  // ── Step: Theory (one chunk from custom steps) ───────────────────────────
+  function renderTheory(stepData) {
+    const stepsTotal  = section.steps.length;
+    const theoryIdx   = steps.filter((s, i) => i <= stepIdx && s.type === 'theory').length;
+    const badge = stepsTotal > 1
+      ? `<div class="a0-theory-badge">Шаг ${theoryIdx} из ${stepsTotal}</div>` : '';
+    return `
+      <div class="a0-theory-wrap">
+        ${badge}
+        <h3 class="a0-theory-title">${stepData.title}</h3>
+        <div class="a0-explanation kaz-content">${stepData.html}</div>
+        <button class="a0-nav-btn" id="btn-next">К практике →</button>
+      </div>`;
+  }
+
+  // ── Step: Practice (dispatcher) ──────────────────────────────────────────
+  function renderPractice(p) {
+    switch (p.type) {
+      case 'match-pairs': return renderMatchPairs(p);
+      case 'sort-words':  return renderSortWords(p);
+      case 'pick-one':    return renderPickOne(p);
+      default: return `<button class="a0-nav-btn" id="btn-next">Продолжить →</button>`;
+    }
+  }
+
+  // ── Practice: match-pairs ─────────────────────────────────────────────────
+  // Tap item on left → tap item on right to connect. All must be correct.
+  let pairsState = {};
+
+  function renderMatchPairs(p) {
+    const lefts  = p.pairs.map(pair => pair[0]);
+    const rights = shuffle(p.pairs.map(pair => pair[1]));
+    pairsState = { pairs: p.pairs, lefts, rights, selected: null, matched: new Set(), errors: 0 };
+
+    const leftHtml  = lefts.map((l, i) =>
+      `<button class="pair-item pair-left" data-idx="${i}">${l}</button>`).join('');
+    const rightHtml = rights.map((r, i) =>
+      `<button class="pair-item pair-right" data-val="${r}">${r}</button>`).join('');
+
+    return `
+      <div class="a0-practice-wrap">
+        <div class="a0-practice-icon">🔗</div>
+        <p class="a0-practice-instruction">${p.instruction}</p>
+        <div class="a0-pairs-grid">
+          <div class="a0-pairs-col">${leftHtml}</div>
+          <div class="a0-pairs-col">${rightHtml}</div>
+        </div>
+        <div id="pairs-feedback" class="a0-practice-feedback"></div>
+        <button class="a0-nav-btn" id="btn-next" style="display:none">Продолжить →</button>
+      </div>`;
+  }
+
+  function attachMatchPairsListeners() {
+    const body = document.getElementById('lesson-body');
+    if (!body) return;
+    const { pairs, lefts, rights, matched } = pairsState;
+
+    body.querySelectorAll('.pair-left').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.classList.contains('correct')) return;
+        body.querySelectorAll('.pair-left').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        pairsState.selected = parseInt(btn.dataset.idx);
+      });
+    });
+
+    body.querySelectorAll('.pair-right').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.classList.contains('correct')) return;
+        if (pairsState.selected === null) return;
+
+        const leftIdx  = pairsState.selected;
+        const leftVal  = pairsState.lefts[leftIdx];
+        const rightVal = btn.dataset.val;
+        const correctRight = pairsState.pairs[leftIdx][1];
+
+        const leftBtn = body.querySelector(`.pair-left[data-idx="${leftIdx}"]`);
+
+        if (rightVal === correctRight) {
+          leftBtn.classList.add('correct'); leftBtn.classList.remove('selected');
+          btn.classList.add('correct');
+          pairsState.matched.add(leftIdx);
+          pairsState.selected = null;
+
+          if (pairsState.matched.size === pairsState.pairs.length) {
+            const fb = document.getElementById('pairs-feedback');
+            if (fb) fb.textContent = pairsState.errors === 0 ? '🎉 Отлично! Все пары верны!' : '✓ Готово!';
+            const nx = document.getElementById('btn-next');
+            if (nx) nx.style.display = '';
+          }
+        } else {
+          pairsState.errors++;
+          leftBtn.classList.add('shake'); btn.classList.add('shake');
+          setTimeout(() => { leftBtn.classList.remove('shake'); btn.classList.remove('shake'); }, 500);
+        }
+      });
+    });
+  }
+
+  // ── Practice: sort-words ──────────────────────────────────────────────────
+  let sortState = {};
+
+  function renderSortWords(p) {
+    sortState = { items: shuffle([...p.items]), idx: 0, score: 0, total: p.items.length, groups: p.groups };
+    return renderSortCard(p);
+  }
+
+  function renderSortCard(p) {
+    if (sortState.idx >= sortState.total) {
+      const pct = Math.round(sortState.score / sortState.total * 100);
+      return `
+        <div class="a0-practice-wrap" style="text-align:center">
+          <div style="font-size:3rem;margin-bottom:12px">${pct === 100 ? '🎉' : '👍'}</div>
+          <div class="a0-practice-result">${sortState.score} из ${sortState.total} верно</div>
+          <button class="a0-nav-btn" id="btn-next">Продолжить →</button>
+        </div>`;
+    }
+
+    const item = sortState.items[sortState.idx];
+    const progress = `${sortState.idx + 1} / ${sortState.total}`;
+
+    return `
+      <div class="a0-practice-wrap">
+        <div class="a0-practice-icon">🗂️</div>
+        <p class="a0-practice-instruction">${p.instruction}</p>
+        <div class="a0-sort-progress">${progress}</div>
+        <div class="a0-sort-card">
+          <div class="a0-sort-word">${item.word}</div>
+          <div class="a0-sort-hint">${item.hint}</div>
+        </div>
+        <div class="a0-sort-btns">
+          <button class="a0-sort-btn" data-choice="0">${p.groups[0]}</button>
+          <button class="a0-sort-btn" data-choice="1">${p.groups[1]}</button>
+        </div>
+        <div id="sort-feedback" class="a0-practice-feedback"></div>
+      </div>`;
+  }
+
+  function attachSortWordsListeners() {
+    const body = document.getElementById('lesson-body');
+    if (!body) return;
+    const step = steps[stepIdx];
+    const p = step.data;
+
+    body.querySelectorAll('.a0-sort-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const choice  = parseInt(btn.dataset.choice);
+        const item    = sortState.items[sortState.idx];
+        const correct = choice === item.correct;
+        if (correct) sortState.score++;
+
+        const fb = document.getElementById('sort-feedback');
+        if (fb) {
+          fb.textContent = correct ? '✓ Верно!' : `✗ Это ${p.groups[item.correct].replace(/[💪🌸]/g,'').trim()}`;
+          fb.className = 'a0-practice-feedback ' + (correct ? 'correct' : 'wrong');
+        }
+
+        body.querySelectorAll('.a0-sort-btn').forEach(b => b.disabled = true);
+
+        setTimeout(() => {
+          sortState.idx++;
+          body.innerHTML = renderSortCard(p);
+          attachSortWordsListeners();
+        }, 900);
+      });
+    });
+
+    const nx = document.getElementById('btn-next');
+    if (nx) nx.addEventListener('click', goNext);
+  }
+
+  // ── Practice: pick-one ────────────────────────────────────────────────────
+  let pickState = {};
+
+  function renderPickOne(p) {
+    pickState = { questions: shuffle([...p.questions]), idx: 0, score: 0, answered: false };
+    return renderPickCard(p);
+  }
+
+  function renderPickCard(p) {
+    if (pickState.idx >= pickState.questions.length) {
+      const pct = Math.round(pickState.score / pickState.questions.length * 100);
+      return `
+        <div class="a0-practice-wrap" style="text-align:center">
+          <div style="font-size:3rem;margin-bottom:12px">${pct >= 75 ? '🎉' : '👍'}</div>
+          <div class="a0-practice-result">${pickState.score} из ${pickState.questions.length} верно</div>
+          <button class="a0-nav-btn" id="btn-next">Продолжить →</button>
+        </div>`;
+    }
+
+    const q = pickState.questions[pickState.idx];
+    const num = `${pickState.idx + 1} / ${pickState.questions.length}`;
+    const optHtml = q.options.map((o, i) =>
+      `<button class="a0-pick-btn" data-idx="${i}">${o}</button>`).join('');
+
+    return `
+      <div class="a0-practice-wrap">
+        <div class="a0-practice-icon">❓</div>
+        <p class="a0-practice-instruction">${p.instruction}</p>
+        <div class="a0-sort-progress">${num}</div>
+        <div class="a0-pick-prompt">${q.prompt}</div>
+        <div class="a0-pick-options">${optHtml}</div>
+        <div id="pick-feedback" class="a0-practice-feedback"></div>
+      </div>`;
+  }
+
+  function attachPickOneListeners() {
+    const body = document.getElementById('lesson-body');
+    if (!body) return;
+    const step = steps[stepIdx];
+    const p = step.data;
+
+    body.querySelectorAll('.a0-pick-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (pickState.answered) return;
+        pickState.answered = true;
+
+        const chosen  = parseInt(btn.dataset.idx);
+        const q       = pickState.questions[pickState.idx];
+        const correct = chosen === q.correct;
+        if (correct) pickState.score++;
+
+        body.querySelectorAll('.a0-pick-btn').forEach((b, i) => {
+          b.disabled = true;
+          if (i === q.correct) b.classList.add('correct');
+          else if (i === chosen) b.classList.add('wrong');
+        });
+
+        const fb = document.getElementById('pick-feedback');
+        if (fb) {
+          fb.textContent = correct ? '✓ Верно!' : `✗ Правильно: ${q.options[q.correct]}`;
+          fb.className = 'a0-practice-feedback ' + (correct ? 'correct' : 'wrong');
+        }
+
+        setTimeout(() => {
+          pickState.idx++;
+          pickState.answered = false;
+          body.innerHTML = renderPickCard(p);
+          attachPickOneListeners();
+        }, 1100);
+      });
+    });
+
+    const nx = document.getElementById('btn-next');
+    if (nx) nx.addEventListener('click', goNext);
   }
 
   // ── Audio playback ────────────────────────────────────────────────────────
@@ -451,6 +711,13 @@
     if (type === 'vocab')       attachVocabListeners();
     if (type === 'exercise')    attachExerciseListeners();
     if (type === 'explanation') attachAudioListeners();
+    if (type === 'theory')      attachAudioListeners();
+    if (type === 'practice') {
+      const p = steps[stepIdx].data;
+      if (p.type === 'match-pairs') attachMatchPairsListeners();
+      if (p.type === 'sort-words')  attachSortWordsListeners();
+      if (p.type === 'pick-one')    attachPickOneListeners();
+    }
 
     if (type === 'video') {
       // Load video URL from videocourse data
