@@ -274,7 +274,7 @@
 
     return `
       <div class="a0-practice-wrap">
-        <div class="a0-practice-icon">🤝</div>
+        <div class="a0-practice-icon">🧩</div>
         <p class="a0-practice-instruction">${p.instruction}</p>
         <div id="matched-pairs" class="a0-matched-pairs"></div>
         <div class="a0-pairs-grid">
@@ -352,7 +352,7 @@
 
             const el = document.createElement('div');
             el.className = 'a0-matched-pair';
-            el.innerHTML = `${activeSrc.textContent} <span class="a0-handshake">🤝</span> ${target.textContent}`;
+            el.innerHTML = `${activeSrc.textContent} <span class="a0-handshake">🧩</span> ${target.textContent}`;
             document.getElementById('matched-pairs')?.appendChild(el);
 
             if (pairsState.matched.size === pairs.length) {
@@ -377,49 +377,42 @@
     });
   }
 
-  // ── Practice: sort-words (drag card into basket) ─────────────────────────
+  // ── Practice: sort-words (drag all cards into baskets) ───────────────────
   let sortState = {};
 
   function renderSortWords(p) {
-    sortState = { items: shuffle([...p.items]), idx: 0, score: 0, total: p.items.length, groups: p.groups };
-    return renderSortCard(p);
+    sortState = {
+      items: shuffle([...p.items]),
+      placed: new Set(),
+      errors: 0,
+      total: p.items.length,
+      groups: p.groups,
+    };
+    return buildSortHtml(p);
   }
 
-  function renderSortCard(p) {
-    if (sortState.idx >= sortState.total) {
-      const pct = Math.round(sortState.score / sortState.total * 100);
-      return `
-        <div class="a0-practice-wrap" style="text-align:center">
-          <div style="font-size:3rem;margin-bottom:12px">${pct === 100 ? '🎉' : '👍'}</div>
-          <div class="a0-practice-result">${sortState.score} из ${sortState.total} верно</div>
-          <button class="a0-nav-btn" id="btn-next">Продолжить →</button>
-        </div>`;
-    }
+  function buildSortHtml(p) {
+    const poolHtml = sortState.items.map((item, i) =>
+      `<div class="a0-pool-card" data-idx="${i}" style="touch-action:none">
+        <div class="a0-sort-word">${item.word}</div>
+        ${item.hint ? `<div class="a0-sort-hint">${item.hint}</div>` : ''}
+      </div>`
+    ).join('');
 
-    const item = sortState.items[sortState.idx];
-    const progress = `${sortState.idx + 1} / ${sortState.total}`;
+    const basketsHtml = p.groups.map((g, gi) =>
+      `<div class="a0-basket" id="basket-${gi}" data-choice="${gi}">
+        <div class="a0-basket-label">${g}</div>
+        <div class="a0-basket-chips" id="chips-${gi}"></div>
+      </div>`
+    ).join('');
 
     return `
       <div class="a0-practice-wrap">
         <p class="a0-practice-instruction">${p.instruction}</p>
-        <div class="a0-sort-progress">${progress}</div>
-        <div class="a0-drag-arena">
-          <div class="a0-drag-card" id="drag-card" style="touch-action:none">
-            <div class="a0-sort-word">${item.word}</div>
-            <div class="a0-sort-hint">${item.hint}</div>
-          </div>
-        </div>
-        <div class="a0-baskets">
-          <div class="a0-basket" id="basket-0" data-choice="0">
-            <div class="a0-basket-emoji">🧱</div>
-            <div class="a0-basket-label">${p.groups[0]}</div>
-          </div>
-          <div class="a0-basket" id="basket-1" data-choice="1">
-            <div class="a0-basket-emoji">🪶</div>
-            <div class="a0-basket-label">${p.groups[1]}</div>
-          </div>
-        </div>
+        <div class="a0-sort-pool" id="sort-pool">${poolHtml}</div>
+        <div class="a0-baskets">${basketsHtml}</div>
         <div id="sort-feedback" class="a0-practice-feedback"></div>
+        <button class="a0-nav-btn" id="btn-next" style="display:none">Продолжить →</button>
       </div>`;
   }
 
@@ -432,82 +425,124 @@
     const nx = document.getElementById('btn-next');
     if (nx) nx.addEventListener('click', goNext);
 
-    const card = document.getElementById('drag-card');
-    if (!card) return;
+    body.querySelectorAll('.a0-pool-card').forEach(card => attachPoolCardDrag(card, p));
+  }
 
-    let startX = 0, startY = 0, active = false;
+  function attachPoolCardDrag(card, p) {
+    let clone = null;
+    let startX = 0, startY = 0;
+    let hasMoved = false;
 
     card.addEventListener('pointerdown', e => {
       startX = e.clientX; startY = e.clientY;
-      active = true;
+      hasMoved = false;
       card.setPointerCapture(e.pointerId);
-      card.classList.add('dragging');
     });
 
     card.addEventListener('pointermove', e => {
-      if (!active) return;
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
-      const rot = Math.max(-14, Math.min(14, dx * 0.06));
-      card.style.transform = `translate(${dx}px,${dy}px) rotate(${rot}deg)`;
-      body.querySelectorAll('.a0-basket').forEach(b => {
-        const r = b.getBoundingClientRect();
+      if (!hasMoved && Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      if (!hasMoved) {
+        hasMoved = true;
+        card.style.opacity = '.35';
+        const r = card.getBoundingClientRect();
+        clone = card.cloneNode(true);
+        Object.assign(clone.style, {
+          position: 'fixed', left: r.left + 'px', top: r.top + 'px',
+          width: r.width + 'px', margin: '0', pointerEvents: 'none',
+          zIndex: '9999', opacity: '0.92', transition: 'none',
+          boxShadow: '0 10px 32px rgba(0,0,0,.22)',
+        });
+        document.body.appendChild(clone);
+      }
+      const rot = Math.max(-14, Math.min(14, (e.clientX - startX) * 0.04));
+      clone.style.transform = `translate(${e.clientX - startX}px,${e.clientY - startY}px) rotate(${rot}deg) scale(1.06)`;
+      const body2 = document.getElementById('lesson-body');
+      if (body2) body2.querySelectorAll('.a0-basket').forEach(b => {
+        const r2 = b.getBoundingClientRect();
         b.classList.toggle('drag-over',
-          e.clientX > r.left && e.clientX < r.right &&
-          e.clientY > r.top  && e.clientY < r.bottom);
+          e.clientX > r2.left && e.clientX < r2.right &&
+          e.clientY > r2.top  && e.clientY < r2.bottom);
       });
     });
 
     function settle(e) {
-      if (!active) return;
-      active = false;
-      card.classList.remove('dragging');
+      if (clone) { clone.remove(); clone = null; }
+      card.style.opacity = '1';
+      if (!hasMoved) return;
+      hasMoved = false;
 
+      const body2 = document.getElementById('lesson-body');
       let chosen = null;
-      body.querySelectorAll('.a0-basket').forEach(b => {
+      if (body2) body2.querySelectorAll('.a0-basket').forEach(b => {
         b.classList.remove('drag-over');
         const r = b.getBoundingClientRect();
         if (e.clientX > r.left && e.clientX < r.right &&
             e.clientY > r.top  && e.clientY < r.bottom) chosen = b;
       });
 
-      if (!chosen) {
-        card.style.transition = 'transform .35s cubic-bezier(.34,1.56,.64,1)';
-        card.style.transform = '';
-        setTimeout(() => { card.style.transition = ''; }, 400);
-        return;
-      }
+      if (!chosen) return;
 
-      const item = sortState.items[sortState.idx];
+      const itemIdx = parseInt(card.dataset.idx);
+      const item = sortState.items[itemIdx];
       const correct = parseInt(chosen.dataset.choice) === item.correct;
-      if (correct) sortState.score++;
-
       const fb = document.getElementById('sort-feedback');
-      if (fb) {
-        fb.textContent = correct ? '✓ Верно!' : `✗ Это ${p.groups[item.correct]}`;
-        fb.className = 'a0-practice-feedback ' + (correct ? 'correct' : 'wrong');
-      }
 
-      chosen.classList.add(correct ? 'basket-success' : 'basket-error');
       if (correct) {
-        card.style.transition = 'transform .2s ease, opacity .3s ease';
+        sortState.placed.add(itemIdx);
+        const chipsEl = document.getElementById(`chips-${item.correct}`);
+        if (chipsEl) {
+          const chip = document.createElement('div');
+          chip.className = 'a0-basket-chip';
+          chip.textContent = item.word;
+          if (item.hint) chip.title = item.hint;
+          chipsEl.appendChild(chip);
+        }
+        card.style.transition = 'transform .18s ease, opacity .22s ease';
         card.style.opacity = '0';
-        card.style.transform += ' scale(0.4)';
-      } else {
-        card.style.transition = 'transform .35s cubic-bezier(.34,1.56,.64,1)';
-        card.style.transform = '';
-        setTimeout(() => { card.style.transition = ''; }, 400);
-      }
+        card.style.transform = 'scale(0.4)';
+        setTimeout(() => card.remove(), 250);
 
-      setTimeout(() => {
-        sortState.idx++;
-        body.innerHTML = renderSortCard(p);
-        attachSortWordsListeners();
-      }, 900);
+        chosen.classList.add('basket-success');
+        setTimeout(() => chosen.classList.remove('basket-success'), 500);
+
+        if (sortState.placed.size === sortState.total) {
+          if (fb) {
+            fb.textContent = sortState.errors === 0 ? '🎉 Всё правильно!' : '✓ Разобрано!';
+            fb.className = 'a0-practice-feedback correct';
+          }
+          const nxBtn = document.getElementById('btn-next');
+          if (nxBtn) nxBtn.style.display = '';
+        } else {
+          if (fb) {
+            fb.textContent = '✓ Верно!';
+            fb.className = 'a0-practice-feedback correct';
+            setTimeout(() => { if (fb && fb.textContent === '✓ Верно!') fb.textContent = ''; }, 700);
+          }
+        }
+      } else {
+        sortState.errors++;
+        card.classList.add('shake');
+        chosen.classList.add('basket-error');
+        setTimeout(() => {
+          card.classList.remove('shake');
+          chosen.classList.remove('basket-error');
+        }, 500);
+        if (fb) {
+          fb.textContent = `✗ Это «${p.groups[item.correct]}»`;
+          fb.className = 'a0-practice-feedback wrong';
+          setTimeout(() => { if (fb && fb.textContent.startsWith('✗')) fb.textContent = ''; }, 1100);
+        }
+      }
     }
 
     card.addEventListener('pointerup', settle);
-    card.addEventListener('lostpointercapture', () => { active = false; });
+    card.addEventListener('lostpointercapture', () => {
+      if (clone) { clone.remove(); clone = null; }
+      card.style.opacity = '1';
+      hasMoved = false;
+    });
   }
 
   // ── Practice: pick-one ────────────────────────────────────────────────────
@@ -635,7 +670,8 @@
   // ── Vocab: pre-lesson circular loop ──────────────────────────────────────
   function initVocabPre(words) {
     words.forEach(w => markSeen(w.sid, w.widx));
-    vocabPreQueue = shuffle(words.map(w => ({ ...w, dir: Math.random() < .5 ? 'kaz' : 'ru' })));
+    const pairs = words.flatMap(w => [{ ...w, dir: 'kaz' }, { ...w, dir: 'ru' }]);
+    vocabPreQueue = shuffle(pairs);
     vocabPreFlipped = false;
   }
 
@@ -678,6 +714,7 @@
             <div class="fc-card-face fc-card-back">
               <div class="fc-card-lang">${backLang}</div>
               <div class="fc-card-text">${back}</div>
+              <div class="fc-flip-hint">Тап — назад</div>
             </div>
           </div>
         </div>
@@ -716,7 +753,7 @@
     function preWrong() {
       const item = vocabPreQueue.shift();
       if (item) {
-        vocabPreQueue.push({ ...item, dir: item.dir === 'kaz' ? 'ru' : 'kaz' });
+        vocabPreQueue.push({ ...item });
         recordWord(item.sid, item.widx, false);
       }
       vocabPreFlipped = false;
@@ -749,12 +786,10 @@
       if (!hasMoved) {
         dragWrap.style.transition = '';
         dragWrap.style.transform = '';
-        if (!vocabPreFlipped) {
-          vocabPreFlipped = true;
-          card.classList.add('flipped');
-          const actions = document.getElementById('vpc-actions');
-          if (actions) actions.style.display = 'flex';
-        }
+        vocabPreFlipped = !vocabPreFlipped;
+        card.classList.toggle('flipped', vocabPreFlipped);
+        const actions = document.getElementById('vpc-actions');
+        if (actions) actions.style.display = vocabPreFlipped ? 'flex' : 'none';
         return;
       }
 
@@ -829,6 +864,7 @@
             <div class="fc-card-face fc-card-back">
               <div class="fc-card-lang">${backLang}</div>
               <div class="fc-card-text">${back}</div>
+              <div class="fc-flip-hint">Тап — назад</div>
             </div>
           </div>
         </div>
@@ -897,12 +933,10 @@
       if (!hasMoved) {
         dragWrap.style.transition = '';
         dragWrap.style.transform = '';
-        if (!vocabReviewFlipped) {
-          vocabReviewFlipped = true;
-          card.classList.add('flipped');
-          const actions = document.getElementById('vrc-actions');
-          if (actions) actions.style.display = 'flex';
-        }
+        vocabReviewFlipped = !vocabReviewFlipped;
+        card.classList.toggle('flipped', vocabReviewFlipped);
+        const actions = document.getElementById('vrc-actions');
+        if (actions) actions.style.display = vocabReviewFlipped ? 'flex' : 'none';
         return;
       }
 

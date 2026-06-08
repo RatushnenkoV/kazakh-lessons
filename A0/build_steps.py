@@ -176,6 +176,12 @@ def build_steps_prav(html):
     while len(chunks) < 3:
         chunks.append('')
 
+    sub = split_at_paragraph(chunks[2], ['Порядок следования окончаний'])
+    while len(sub) < 2:
+        sub.append('')
+    singarmonizm = sub[0]
+    poryadok = sub[1]
+
     return [
         {
             'title': 'Твёрдые слова',
@@ -213,7 +219,7 @@ def build_steps_prav(html):
         },
         {
             'title': 'Закон сингармонизма',
-            'html': chunks[2],
+            'html': singarmonizm,
             'practice': {
                 'type': 'match-pairs',
                 'instruction': 'Соедини слово с правильным окончанием «в/на»',
@@ -222,6 +228,20 @@ def build_steps_prav(html):
                     ['есік',  '-те'],
                     ['орман', '-да'],
                     ['өмір',  '-де'],
+                ]
+            }
+        },
+        {
+            'title': 'Порядок следования окончаний',
+            'html': poryadok,
+            'practice': {
+                'type': 'match-pairs',
+                'instruction': 'Соедини описание с правильной казахской формой',
+                'pairs': [
+                    ['люди (мн.ч.)',   'адамдар'],
+                    ['их люди',        'адамдары'],
+                    ['наши магазины',  'дүкендеріміз'],
+                    ['твои игрушки',   'ойыншықтарың'],
                 ]
             }
         }
