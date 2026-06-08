@@ -65,7 +65,8 @@
 .a0-path-body {
   max-width: 800px;
   margin: 0 auto;
-  padding: 24px 24px 60px;
+  padding: 0 0 60px;
+  overflow-x: hidden; /* clip bands that extend past page edges */
 }
 
 /* ── Lesson map ── */
@@ -73,6 +74,7 @@
   display: block;
   max-width: 480px;
   margin: 0 auto;
+  /* no overflow:hidden — bands break out to full screen width */
 }
 
 .a0-chapter-label {
@@ -495,13 +497,10 @@
   width: 100%;
 }
 
-/* Colored chapter background bands */
+/* Colored chapter background bands — left/width/top/height set by JS */
 .map-band {
   position: absolute;
-  left: 0;
-  right: 0;
   z-index: 0;
-  border-radius: 0;
 }
 
 /* SVG sine path */

@@ -17,9 +17,9 @@
   ];
 
   // Layout constants
-  const NODE_SPACING   = 72;   // vertical px between consecutive nodes
-  const CHAPTER_GAP    = 54;   // extra px for chapter banner before first node
-  const WAVELENGTH     = 360;  // px for one full sine period
+  const NODE_SPACING   = 100;  // vertical px between consecutive nodes
+  const CHAPTER_GAP    = 56;   // extra px for chapter banner before first node
+  const WAVELENGTH     = 380;  // px for one full sine period
   const AMPLITUDE_FRAC = 0.27; // fraction of container width for sine amplitude
   const MAX_AMPLITUDE  = 110;  // px cap
   const PADDING_TOP    = 20;
@@ -100,23 +100,37 @@
     const totalHeight = y + PADDING_BOTTOM;
 
     // ── Chapter background bands & SVG paths ───────────────────────────────
+    // Bands stretch to full viewport width via JS-computed offset
+    const containerRect = list.getBoundingClientRect();
+    const bandLeft  = -Math.round(containerRect.left);
+    const bandWidth = window.innerWidth;
+
     let bandHtml = '';
     let svgPaths = '';
 
-    let gi = 0;
-    let bandTop = PADDING_TOP;
-    for (const { nodes, color } of groups) {
-      const [bg] = color;
-      const nodesCount = nodes.length;
-      const bandBottom = bandTop + CHAPTER_GAP + nodesCount * NODE_SPACING - NODE_SPACING * 0.4;
+    // Compute seamless band boundaries: each band ends exactly where next starts
+    const bandTops = [];
+    {
+      let bt = PADDING_TOP;
+      for (const { nodes } of groups) {
+        bandTops.push(bt);
+        bt += CHAPTER_GAP + nodes.length * NODE_SPACING;
+      }
+      bandTops.push(totalHeight); // sentinel for last band bottom
+    }
 
-      // Background band
-      bandHtml += `<div class="map-band" style="top:${bandTop.toFixed(0)}px;height:${(bandBottom - bandTop).toFixed(0)}px;background:${hexAlpha(bg, 0.10)}"></div>`;
+    for (let gi = 0; gi < groups.length; gi++) {
+      const { nodes, color } = groups[gi];
+      const [bg] = color;
+      const bt  = bandTops[gi];
+      const bh  = bandTops[gi + 1] - bt;
+
+      bandHtml += `<div class="map-band" style="left:${bandLeft}px;width:${bandWidth}px;top:${bt}px;height:${bh}px;background:${hexAlpha(bg, 0.10)}"></div>`;
 
       // Sine path for this chapter (from first to last node y)
-      const pStart = bandTop + CHAPTER_GAP;
-      const pEnd   = pStart + (nodesCount - 1) * NODE_SPACING;
-      if (nodesCount > 1) {
+      const pStart = bt + CHAPTER_GAP;
+      const pEnd   = pStart + (nodes.length - 1) * NODE_SPACING;
+      if (nodes.length > 1) {
         let d = '';
         for (let py = pStart; py <= pEnd + 2; py += 3) {
           const px = sineX(py);
@@ -124,9 +138,6 @@
         }
         svgPaths += `<path d="${d}" fill="none" stroke="${bg}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>`;
       }
-
-      bandTop += CHAPTER_GAP + nodesCount * NODE_SPACING;
-      gi++;
     }
 
     // ── Node & banner HTML ─────────────────────────────────────────────────
