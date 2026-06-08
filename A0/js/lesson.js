@@ -7,6 +7,7 @@
   const DATA_URL     = 'kaz-content/grammar_full.json';
   const PROGRESS_KEY = 'a0-progress';
   const WORDS_KEY    = 'a0-words'; // spaced repetition storage
+  const SEEN_KEY     = 'a0-seen';  // words that have appeared in pre-lesson cards
 
   // ── URL param ──────────────────────────────────────────────────────────────
   const sectionId = new URLSearchParams(location.search).get('id') || '';
@@ -16,11 +17,18 @@
   let steps   = [];  // array of step descriptors
   let stepIdx = 0;
 
-  // Word learning state for this session
-  let vocabQueue  = [];  // words to show this session
-  let vocabIndex  = 0;
+  // Word learning state for this session (legacy vocab step)
+  let vocabQueue   = [];
+  let vocabIndex   = 0;
   let vocabFlipped = false;
-  let vocabDir    = 'kaz'; // 'kaz' = show kaz, ask for ru; 'ru' = show ru, ask for kaz
+
+  // Pre-lesson circular vocab queue
+  let vocabPreQueue   = [];
+  let vocabPreFlipped = false;
+
+  // End-of-lesson review queue
+  let vocabReviewQueue   = [];
+  let vocabReviewFlipped = false;
 
   // ── localStorage helpers ───────────────────────────────────────────────────
   function getProgress() {
@@ -33,24 +41,59 @@
     localStorage.setItem(PROGRESS_KEY, JSON.stringify(p));
   }
 
-  // Spaced repetition word store: { 'sectionId:wordIdx': { correct: N, wrong: N } }
+  // Word store: { 'sectionId:wordIdx': { correct: N, wrong: N } }
   function getWordStore() {
     try { return JSON.parse(localStorage.getItem(WORDS_KEY)) || {}; }
     catch { return {}; }
   }
-  function wordKey(sectionId, wordIdx) { return `${sectionId}:${wordIdx}`; }
-  function recordWord(sectionId, wordIdx, correct) {
+  function wordKey(sid, widx) { return `${sid}:${widx}`; }
+  function recordWord(sid, widx, correct) {
     const store = getWordStore();
-    const key = wordKey(sectionId, wordIdx);
+    const key = wordKey(sid, widx);
     const rec = store[key] || { correct: 0, wrong: 0 };
     if (correct) rec.correct++; else rec.wrong++;
     store[key] = rec;
     localStorage.setItem(WORDS_KEY, JSON.stringify(store));
   }
-  function isWordLearned(sectionId, wordIdx) {
+  function isWordLearned(sid, widx) {
+    return (getWordStore()[wordKey(sid, widx)] || {}).correct >= 3;
+  }
+
+  // Seen words: set of 'sectionId:wordIdx' keys shown in pre-lesson cards
+  function getSeenSet() {
+    try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); }
+    catch { return new Set(); }
+  }
+  function markSeen(sid, widx) {
+    const s = getSeenSet();
+    s.add(wordKey(sid, widx));
+    localStorage.setItem(SEEN_KEY, JSON.stringify([...s]));
+  }
+  function isSeen(sid, widx) { return getSeenSet().has(wordKey(sid, widx)); }
+
+  // Words from this section not yet shown in any lesson (max 20, shuffled)
+  function getNewWords(sec) {
+    if (!sec.words || !sec.words.length) return [];
+    const fresh = sec.words
+      .map((w, i) => ({ ...w, sid: sec.id, widx: i }))
+      .filter(w => !isSeen(w.sid, w.widx));
+    return shuffle(fresh).slice(0, 20);
+  }
+
+  // N random words the user has pressed "Знаю" on (correct >= 1), across all lessons
+  function getRandomLearnedWords(n) {
     const store = getWordStore();
-    const rec = store[wordKey(sectionId, wordIdx)] || { correct: 0 };
-    return rec.correct >= 3;
+    const pool = [];
+    for (const [key, rec] of Object.entries(store)) {
+      if (rec.correct < 1) continue;
+      const [sid, widxStr] = key.split(':');
+      const sec = allSections.find(s => s.id === sid);
+      const widx = parseInt(widxStr);
+      if (sec && sec.words && sec.words[widx]) {
+        pool.push({ ...sec.words[widx], sid, widx });
+      }
+    }
+    return shuffle(pool).slice(0, n);
   }
 
   // ── Progress bar ───────────────────────────────────────────────────────────
@@ -66,19 +109,25 @@
     const list = [];
     list.push({ type: 'intro' });
 
+    // Pre-lesson vocab: new words not seen in any previous lesson
+    const newWords = getNewWords(sec);
+    if (newWords.length > 0) list.push({ type: 'vocab-pre', words: newWords });
+
     if (sec.steps && sec.steps.length > 0) {
-      // Custom multi-step mode: theory → practice pairs
       for (const s of sec.steps) {
         list.push({ type: 'theory', data: s });
         if (s.practice) list.push({ type: 'practice', data: s.practice });
       }
     } else {
-      // Legacy single explanation
       list.push({ type: 'explanation' });
       if (sec.relatedVideos.length)  list.push({ type: 'video' });
       if (sec.words.length)          list.push({ type: 'vocab' });
       if (sec.sentences.length >= 3) list.push({ type: 'exercise' });
     }
+
+    // Post-lesson review: 5 random previously learned words
+    const reviewWords = getRandomLearnedWords(5);
+    if (reviewWords.length > 0) list.push({ type: 'vocab-review', words: reviewWords });
 
     list.push({ type: 'complete' });
     return list;
@@ -124,14 +173,16 @@
 
     let html = '';
     switch (step.type) {
-      case 'intro':       html = renderIntro();              break;
-      case 'theory':      html = renderTheory(step.data);   break;
-      case 'practice':    html = renderPractice(step.data); break;
-      case 'explanation': html = renderExplanation();        break;
-      case 'video':       html = renderVideo();              break;
-      case 'vocab':       initVocab(); html = renderVocabFrame(); break;
-      case 'exercise':    html = renderExercise();           break;
-      case 'complete':    markDone(section.id); html = renderComplete(); break;
+      case 'intro':        html = renderIntro();                                  break;
+      case 'vocab-pre':    initVocabPre(step.words); html = renderVocabPreFrame(); break;
+      case 'theory':       html = renderTheory(step.data);                        break;
+      case 'practice':     html = renderPractice(step.data);                      break;
+      case 'explanation':  html = renderExplanation();                             break;
+      case 'video':        html = renderVideo();                                   break;
+      case 'vocab':        initVocab(); html = renderVocabFrame();                 break;
+      case 'vocab-review': initVocabReview(step.words); html = renderVocabReviewFrame(); break;
+      case 'exercise':     html = renderExercise();                                break;
+      case 'complete':     markDone(section.id); html = renderComplete();          break;
     }
 
     // Prepend back button on all steps except intro and complete
@@ -530,6 +581,208 @@
     if (nx) nx.addEventListener('click', goNext);
   }
 
+  // ── Practice: find-letters ────────────────────────────────────────────────
+  // Tap all letters marked kazakh:true. Wrong taps shake.
+  let findState = {};
+
+  function renderFindLetters(p) {
+    findState = { letters: shuffle([...p.letters]), found: 0, target: p.target || p.letters.filter(l => l.kazakh).length, errors: 0 };
+    const lettersHtml = findState.letters.map((l, i) =>
+      `<button class="a0-find-letter" data-idx="${i}" data-kazakh="${l.kazakh}">${l.char}</button>`
+    ).join('');
+    return `
+      <div class="a0-practice-wrap">
+        <div class="a0-practice-icon">🔍</div>
+        <p class="a0-practice-instruction">${p.instruction}</p>
+        <div id="find-counter" class="a0-sort-progress">Найдено: 0 / ${findState.target}</div>
+        <div class="a0-letters-grid">${lettersHtml}</div>
+        <div id="find-feedback" class="a0-practice-feedback"></div>
+        <button class="a0-nav-btn" id="btn-next" style="display:none">Продолжить →</button>
+      </div>`;
+  }
+
+  function attachFindLettersListeners() {
+    const body = document.getElementById('lesson-body');
+    if (!body) return;
+    body.querySelectorAll('.a0-find-letter').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.classList.contains('found') || btn.classList.contains('wrong-tap')) return;
+        const isKazakh = btn.dataset.kazakh === 'true';
+        if (isKazakh) {
+          btn.classList.add('found');
+          findState.found++;
+          const counter = document.getElementById('find-counter');
+          if (counter) counter.textContent = `Найдено: ${findState.found} / ${findState.target}`;
+          if (findState.found >= findState.target) {
+            const fb = document.getElementById('find-feedback');
+            if (fb) fb.textContent = findState.errors === 0 ? '🎉 Все нашёл!' : '✓ Готово!';
+            document.getElementById('btn-next').style.display = '';
+          }
+        } else {
+          findState.errors++;
+          btn.classList.add('wrong-tap');
+          setTimeout(() => btn.classList.remove('wrong-tap'), 600);
+        }
+      });
+    });
+  }
+
+  // ── Vocab: pre-lesson circular loop ──────────────────────────────────────
+  function initVocabPre(words) {
+    words.forEach(w => markSeen(w.sid, w.widx));
+    vocabPreQueue = shuffle(words.map(w => ({ ...w, dir: Math.random() < .5 ? 'kaz' : 'ru' })));
+    vocabPreFlipped = false;
+  }
+
+  function renderVocabPreFrame() {
+    return `
+      <div class="a0-vocab-section-header">
+        <h3>Слова этого урока</h3>
+        <p>Учи по кругу, пока все не станут «Знаю»</p>
+      </div>
+      <div id="vocab-pre-area">${renderVocabPreCard()}</div>`;
+  }
+
+  function renderVocabPreCard() {
+    if (vocabPreQueue.length === 0) {
+      return `<div style="text-align:center;padding:32px 0">
+        <div style="font-size:3rem;margin-bottom:12px">🎉</div>
+        <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px">Все слова выучены!</div>
+        <button class="a0-nav-btn" id="btn-next">Начать урок →</button>
+      </div>`;
+    }
+    const item = vocabPreQueue[0];
+    const front = item.dir === 'kaz' ? item.kaz : item.ru;
+    const back  = item.dir === 'kaz' ? item.ru  : item.kaz;
+    const flag  = item.dir === 'kaz' ? '🇰🇿 → 🇷🇺' : '🇷🇺 → 🇰🇿';
+    return `
+      <div style="text-align:center;margin-bottom:6px">
+        <span class="a0-sort-progress">${flag} · осталось ${vocabPreQueue.length}</span>
+      </div>
+      <div class="a0-vocab-card" id="vpc" style="cursor:pointer">
+        <div id="vpc-front">${front}</div>
+        <div id="vpc-back" style="display:none;font-size:1.2rem;color:var(--text-muted);margin-top:12px">${back}</div>
+        <div id="vpc-hint" style="font-size:.78rem;color:var(--text-light);margin-top:14px;font-weight:600">Нажми чтобы перевернуть</div>
+      </div>
+      <div id="vpc-actions" style="display:none;gap:10px;margin-top:12px">
+        <button class="a0-nav-btn" id="btn-pre-wrong" style="background:var(--error);flex:1;margin-top:0">Не знаю</button>
+        <button class="a0-nav-btn" id="btn-pre-know"  style="background:var(--success);flex:1;margin-top:0">Знаю!</button>
+      </div>`;
+  }
+
+  function attachVocabPreListeners() {
+    const area = document.getElementById('vocab-pre-area');
+
+    const card = document.getElementById('vpc');
+    if (card) card.addEventListener('click', () => {
+      if (vocabPreFlipped) return;
+      vocabPreFlipped = true;
+      document.getElementById('vpc-back').style.display = 'block';
+      document.getElementById('vpc-hint').style.display = 'none';
+      const actions = document.getElementById('vpc-actions');
+      if (actions) actions.style.display = 'flex';
+    });
+
+    const btnKnow  = document.getElementById('btn-pre-know');
+    const btnWrong = document.getElementById('btn-pre-wrong');
+    const btnNext  = document.getElementById('btn-next');
+
+    if (btnKnow) btnKnow.addEventListener('click', () => {
+      const item = vocabPreQueue.shift();
+      recordWord(item.sid, item.widx, true);
+      vocabPreFlipped = false;
+      if (area) { area.innerHTML = renderVocabPreCard(); attachVocabPreListeners(); }
+    });
+
+    if (btnWrong) btnWrong.addEventListener('click', () => {
+      const item = vocabPreQueue.shift();
+      vocabPreQueue.push({ ...item, dir: item.dir === 'kaz' ? 'ru' : 'kaz' });
+      recordWord(item.sid, item.widx, false);
+      vocabPreFlipped = false;
+      if (area) { area.innerHTML = renderVocabPreCard(); attachVocabPreListeners(); }
+    });
+
+    if (btnNext) btnNext.addEventListener('click', goNext);
+  }
+
+  // ── Vocab: end-of-lesson review (5 learned words, one pass) ──────────────
+  function initVocabReview(words) {
+    vocabReviewQueue = words.map(w => ({ ...w, dir: Math.random() < .5 ? 'kaz' : 'ru' }));
+    vocabReviewFlipped = false;
+  }
+
+  function renderVocabReviewFrame() {
+    return `
+      <div class="a0-vocab-section-header">
+        <h3>Закрепление</h3>
+        <p>Вспомни слова из прошлых уроков</p>
+      </div>
+      <div id="vocab-review-area">${renderVocabReviewCard()}</div>`;
+  }
+
+  function renderVocabReviewCard() {
+    if (vocabReviewQueue.length === 0) {
+      return `<div style="text-align:center;padding:32px 0">
+        <div style="font-size:3rem;margin-bottom:12px">✅</div>
+        <div style="font-size:1.1rem;font-weight:800;margin-bottom:20px">Отлично!</div>
+        <button class="a0-nav-btn" id="btn-next">Завершить урок →</button>
+      </div>`;
+    }
+    const item = vocabReviewQueue[0];
+    const front = item.dir === 'kaz' ? item.kaz : item.ru;
+    const back  = item.dir === 'kaz' ? item.ru  : item.kaz;
+    const flag  = item.dir === 'kaz' ? '🇰🇿 → 🇷🇺' : '🇷🇺 → 🇰🇿';
+    const remaining = vocabReviewQueue.length;
+    return `
+      <div style="text-align:center;margin-bottom:6px">
+        <span class="a0-sort-progress">${flag} · ${remaining} осталось</span>
+      </div>
+      <div class="a0-vocab-card" id="vrc" style="cursor:pointer">
+        <div id="vrc-front">${front}</div>
+        <div id="vrc-back" style="display:none;font-size:1.2rem;color:var(--text-muted);margin-top:12px">${back}</div>
+        <div id="vrc-hint" style="font-size:.78rem;color:var(--text-light);margin-top:14px;font-weight:600">Нажми чтобы перевернуть</div>
+      </div>
+      <div id="vrc-actions" style="display:none;gap:10px;margin-top:12px">
+        <button class="a0-nav-btn" id="btn-rev-wrong" style="background:var(--error);flex:1;margin-top:0">Не знаю</button>
+        <button class="a0-nav-btn" id="btn-rev-know"  style="background:var(--success);flex:1;margin-top:0">Знаю!</button>
+      </div>`;
+  }
+
+  function attachVocabReviewListeners() {
+    const area = document.getElementById('vocab-review-area');
+
+    const card = document.getElementById('vrc');
+    if (card) card.addEventListener('click', () => {
+      if (vocabReviewFlipped) return;
+      vocabReviewFlipped = true;
+      document.getElementById('vrc-back').style.display = 'block';
+      document.getElementById('vrc-hint').style.display = 'none';
+      const actions = document.getElementById('vrc-actions');
+      if (actions) actions.style.display = 'flex';
+    });
+
+    const btnKnow  = document.getElementById('btn-rev-know');
+    const btnWrong = document.getElementById('btn-rev-wrong');
+    const btnNext  = document.getElementById('btn-next');
+
+    if (btnKnow) btnKnow.addEventListener('click', () => {
+      const item = vocabReviewQueue.shift();
+      recordWord(item.sid, item.widx, true);
+      vocabReviewFlipped = false;
+      if (area) { area.innerHTML = renderVocabReviewCard(); attachVocabReviewListeners(); }
+    });
+
+    if (btnWrong) btnWrong.addEventListener('click', () => {
+      const item = vocabReviewQueue.shift();
+      // Wrong on review: don't re-add, just record
+      recordWord(item.sid, item.widx, false);
+      vocabReviewFlipped = false;
+      if (area) { area.innerHTML = renderVocabReviewCard(); attachVocabReviewListeners(); }
+    });
+
+    if (btnNext) btnNext.addEventListener('click', goNext);
+  }
+
   // ── Audio playback ────────────────────────────────────────────────────────
   function attachAudioListeners() {
     const body = document.getElementById('lesson-body');
@@ -833,23 +1086,25 @@
   // ── Attach listeners by step type ─────────────────────────────────────────
   function attachListeners(type) {
     const btn = document.getElementById('btn-next');
-    if (btn && type !== 'vocab') btn.addEventListener('click', goNext);
+    if (btn && type !== 'vocab' && type !== 'vocab-pre' && type !== 'vocab-review') {
+      btn.addEventListener('click', goNext);
+    }
 
-    if (type === 'vocab')       attachVocabListeners();
-    if (type === 'exercise')    attachExerciseListeners();
-    if (type === 'explanation') attachAudioListeners();
-    if (type === 'theory')      attachAudioListeners();
+    if (type === 'vocab')        attachVocabListeners();
+    if (type === 'vocab-pre')    attachVocabPreListeners();
+    if (type === 'vocab-review') attachVocabReviewListeners();
+    if (type === 'exercise')     attachExerciseListeners();
+    if (type === 'explanation')  attachAudioListeners();
+    if (type === 'theory')       attachAudioListeners();
     if (type === 'practice') {
       const p = steps[stepIdx].data;
-      if (p.type === 'match-pairs') attachMatchPairsListeners();
-      if (p.type === 'sort-words')  attachSortWordsListeners();
-      if (p.type === 'pick-one')    attachPickOneListeners();
+      if (p.type === 'match-pairs')  attachMatchPairsListeners();
+      if (p.type === 'sort-words')   attachSortWordsListeners();
+      if (p.type === 'pick-one')     attachPickOneListeners();
+      if (p.type === 'find-letters') attachFindLettersListeners();
     }
 
-    if (type === 'video') {
-      // Load video URL from videocourse data
-      loadVideoUrl();
-    }
+    if (type === 'video') loadVideoUrl();
   }
 
   async function loadVideoUrl() {

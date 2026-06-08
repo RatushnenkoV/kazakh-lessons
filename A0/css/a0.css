@@ -531,6 +531,85 @@
 .a0-pick-btn.wrong   { border-color: var(--error);   background: #fde8e8; color: var(--error); }
 .a0-pick-btn:disabled { cursor: default; }
 
+/* ── Find-letters practice ── */
+.a0-letters-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin: 8px 0 16px;
+}
+.a0-find-letter {
+  width: 58px;
+  height: 58px;
+  font-size: 1.5rem;
+  font-weight: 900;
+  border: 2.5px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--bg-card);
+  color: var(--text);
+  cursor: pointer;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.a0-find-letter:hover:not(.found):not(.wrong-tap) {
+  border-color: var(--secondary);
+  background: var(--secondary-pale);
+}
+.a0-find-letter.found {
+  border-color: var(--success);
+  background: var(--success-pale);
+  color: var(--success);
+  cursor: default;
+  animation: pair-pop .3s ease;
+}
+.a0-find-letter.wrong-tap {
+  border-color: var(--error);
+  background: #fde8e8;
+  animation: shake .35s ease;
+}
+
+/* ── Vocab card (shared by pre-lesson and review) ── */
+.a0-vocab-section-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+.a0-vocab-section-header h3 {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.a0-vocab-section-header p {
+  font-size: .88rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.a0-vocab-card {
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 40px 28px;
+  text-align: center;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 4px;
+  user-select: none;
+  transition: box-shadow .15s;
+}
+.a0-vocab-card:hover { box-shadow: var(--shadow-md); }
+.a0-vocab-card > div:first-child {
+  font-size: 1.7rem;
+  font-weight: 900;
+  color: var(--text);
+}
+
 /* ── Kaz-tili.kz content styles ── */
 .kaz-content table {
   border-collapse: collapse;
