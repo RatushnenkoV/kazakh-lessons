@@ -3,7 +3,7 @@
 (function () {
   'use strict';
 
-  const DATA_URL  = 'kaz-content/grammar_parsed.json';
+  const DATA_URL  = 'kaz-content/grammar_full.json';
   const STORE_KEY = 'a0-progress';
 
   const COLORS = [

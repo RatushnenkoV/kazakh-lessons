@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const DATA_URL     = 'kaz-content/grammar_parsed.json';
+  const DATA_URL     = 'kaz-content/grammar_full.json';
   const PROGRESS_KEY = 'a0-progress';
   const WORDS_KEY    = 'a0-words'; // spaced repetition storage
 
