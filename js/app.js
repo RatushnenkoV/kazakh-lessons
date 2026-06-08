@@ -61,4 +61,21 @@ window.KazApp = (function () {
 
 }());
 
-document.addEventListener('DOMContentLoaded', () => KazApp.init());
+document.addEventListener('DOMContentLoaded', () => {
+  KazApp.init();
+  // Tab switching is part of init flow
+  (function initTabs() {
+    const tabs = document.querySelectorAll('.level-tab-btn');
+    const sA0 = document.getElementById('section-a0');
+    const sA1 = document.getElementById('section-a1');
+    if (!tabs.length) return;
+    function setLevel(level) {
+      tabs.forEach(t => t.classList.toggle('active', t.dataset.level === level));
+      if (sA0) sA0.style.display = level === 'a0' ? '' : 'none';
+      if (sA1) sA1.style.display = level === 'a1' ? '' : 'none';
+      localStorage.setItem('kaz-level', level);
+    }
+    tabs.forEach(t => t.addEventListener('click', () => setLevel(t.dataset.level)));
+    setLevel(localStorage.getItem('kaz-level') || 'a1');
+  }());
+});

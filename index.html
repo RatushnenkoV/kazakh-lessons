@@ -19,8 +19,29 @@
       <p>Интерактивные уроки · Карточки · Упражнения</p>
     </div>
 
-    <!-- ===== LESSONS GRID ===== -->
-    <div class="lessons-section">
+    <!-- ===== LEVEL TABS ===== -->
+    <div class="level-tabs-bar">
+      <button class="level-tab-btn" id="tab-a0" data-level="a0">A0 · Начальный</button>
+      <button class="level-tab-btn active" id="tab-a1" data-level="a1">A1 · Базовый</button>
+    </div>
+
+    <!-- ===== A0 SECTION ===== -->
+    <div class="lessons-section" id="section-a0" style="display:none">
+      <a href="A0/index.html" class="a0-start-card">
+        <div class="a0-start-card-left">
+          <div class="a0-start-card-badge">A0</div>
+          <div>
+            <div class="a0-start-card-title">Начальный уровень</div>
+            <div class="a0-start-card-sub">36 тем · Грамматика · Карточки · Задания</div>
+          </div>
+        </div>
+        <span class="a0-start-card-arrow">→</span>
+      </a>
+      <p class="a0-start-hint">Грамматика казахского языка с нуля: алфавит, существительные, глаголы, падежи и всё что нужно для начала.</p>
+    </div>
+
+    <!-- ===== A1 LESSONS GRID ===== -->
+    <div class="lessons-section" id="section-a1">
       <h2>Уроки</h2>
       <div class="lessons-grid" id="lessons-grid">
         <!-- Rendered by app.js -->

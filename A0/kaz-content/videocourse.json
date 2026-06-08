@@ -1,0 +1,270 @@
+{
+  "lessons": [
+    {
+      "id": "videosab01",
+      "level": "Начальный уровень",
+      "number": 1,
+      "title": "01-cабақ. Кім, не",
+      "youtubeUrl": "https://youtu.be/k85iB3ekNLM"
+    },
+    {
+      "id": "videosab02",
+      "level": "Начальный уровень",
+      "number": 2,
+      "title": "02-cабақ. Сандар 1-10",
+      "youtubeUrl": "https://youtu.be/ZxH3U6tgyDI"
+    },
+    {
+      "id": "videosab03",
+      "level": "Начальный уровень",
+      "number": 3,
+      "title": "03-cабақ. Сандар 10-1000",
+      "youtubeUrl": "https://youtu.be/b_KBDmlMnFM"
+    },
+    {
+      "id": "videosab04",
+      "level": "Начальный уровень",
+      "number": 4,
+      "title": "04-cабақ. Түстер",
+      "youtubeUrl": "https://youtu.be/ru6DzGYYm7Q"
+    },
+    {
+      "id": "videosab05",
+      "level": "Начальный уровень",
+      "number": 5,
+      "title": "05-cабақ. Әріп, сөз, жалғау",
+      "youtubeUrl": "https://youtu.be/KwR_i8oESR0"
+    },
+    {
+      "id": "videosab06",
+      "level": "Начальный уровень",
+      "number": 6,
+      "title": "06-cабақ. Дыбыстар",
+      "youtubeUrl": "https://youtu.be/Fdvt1Lci0F8"
+    },
+    {
+      "id": "videosab07",
+      "level": "Начальный уровень",
+      "number": 7,
+      "title": "07-cабақ. Көптік жалғау",
+      "youtubeUrl": "https://youtu.be/nVCsEYPxUek"
+    },
+    {
+      "id": "videosab08",
+      "level": "Начальный уровень",
+      "number": 8,
+      "title": "08-cабақ. Тұр, отыр, жүр, жатыр. Қайда?",
+      "youtubeUrl": "https://youtu.be/xIgvW9_SIDk"
+    },
+    {
+      "id": "videosab09",
+      "level": "Начальный уровень",
+      "number": 9,
+      "title": "09-cабақ. Мен, сен, сіз, ол. Бар, жоқ",
+      "youtubeUrl": "https://youtu.be/WslW7YkUdl0"
+    },
+    {
+      "id": "videosab10",
+      "level": "Начальный уровень",
+      "number": 10,
+      "title": "10-cабақ. Жатыс септік",
+      "youtubeUrl": "https://youtu.be/v-WpemEa_78"
+    },
+    {
+      "id": "videosab11",
+      "level": "Начальный уровень",
+      "number": 11,
+      "title": "11-cабақ. Бөлме",
+      "youtubeUrl": "https://youtu.be/g5Dm4105tjE"
+    },
+    {
+      "id": "videosab12",
+      "level": "Начальный уровень",
+      "number": 12,
+      "title": "12-cабақ. Сұраулы шылаулар",
+      "youtubeUrl": "https://youtu.be/cw6DKFKoI4Q"
+    },
+    {
+      "id": "videosab13",
+      "level": "Начальный уровень",
+      "number": 13,
+      "title": "13-cабақ. Көп, аз",
+      "youtubeUrl": "https://youtu.be/IaFffl8IjJ8"
+    },
+    {
+      "id": "videosab14",
+      "level": "Начальный уровень",
+      "number": 14,
+      "title": "14-cабақ. Үлкен, кішкентай",
+      "youtubeUrl": "https://youtu.be/cx5acuQFWYs"
+    },
+    {
+      "id": "videosab15",
+      "level": "Начальный уровень",
+      "number": 15,
+      "title": "15-cабақ. Қала, өзен",
+      "youtubeUrl": "https://youtu.be/1fw-lWN41Qo"
+    },
+    {
+      "id": "videosab16",
+      "level": "Начальный уровень",
+      "number": 16,
+      "title": "16-cабақ. Етістік",
+      "youtubeUrl": "https://youtu.be/cSrcABU_VfM"
+    },
+    {
+      "id": "videosab17",
+      "level": "Начальный уровень",
+      "number": 17,
+      "title": "17-cабақ. Онда не бар?",
+      "youtubeUrl": "https://youtu.be/DUnPID5ae3c"
+    },
+    {
+      "id": "videosab18",
+      "level": "Начальный уровень",
+      "number": 18,
+      "title": "18-cабақ. Тұйық етістік",
+      "youtubeUrl": "https://youtu.be/BIuUcAD_cNA"
+    },
+    {
+      "id": "videosab19",
+      "level": "Начальный уровень",
+      "number": 19,
+      "title": "19-cабақ. Бұйрық рай",
+      "youtubeUrl": "https://youtu.be/6L7MlugNCEA"
+    },
+    {
+      "id": "videosab20",
+      "level": "Начальный уровень",
+      "number": 20,
+      "title": "20-cабақ. Күндіз, түнде. Болады",
+      "youtubeUrl": "https://youtu.be/cgxyuHqjAxU"
+    },
+    {
+      "id": "videosab21",
+      "level": "Начальный уровень",
+      "number": 21,
+      "title": "21-cабақ. Менің, сенің",
+      "youtubeUrl": "https://youtu.be/h2DS7FGMYYc"
+    },
+    {
+      "id": "videosab22",
+      "level": "Начальный уровень",
+      "number": 22,
+      "title": "22-cабақ. Регрессивті ассимиляция",
+      "youtubeUrl": "https://youtu.be/XF8GjuPLKI4"
+    },
+    {
+      "id": "videosab23",
+      "level": "Начальный уровень",
+      "number": 23,
+      "title": "23-cабақ. Сіздің, оның",
+      "youtubeUrl": "https://youtu.be/D0XXVTpqDR8"
+    },
+    {
+      "id": "videosab24",
+      "level": "Начальный уровень",
+      "number": 24,
+      "title": "24-cабақ. Аңдар",
+      "youtubeUrl": "https://youtu.be/HaelK8U2bwI"
+    },
+    {
+      "id": "videosab25",
+      "level": "Начальный уровень",
+      "number": 25,
+      "title": "25-cабақ. Үй жануарлары",
+      "youtubeUrl": "https://youtu.be/OFpizJvT-E8"
+    },
+    {
+      "id": "videosab26",
+      "level": "Начальный уровень",
+      "number": 26,
+      "title": "26-cабақ. Құстар",
+      "youtubeUrl": "https://youtu.be/CRl2QDNpqSw"
+    },
+    {
+      "id": "videosab27",
+      "level": "Начальный уровень",
+      "number": 27,
+      "title": "27-cабақ. Жануар денесі",
+      "youtubeUrl": "https://youtu.be/l0oTt6okHnM"
+    },
+    {
+      "id": "videosab28",
+      "level": "Начальный уровень",
+      "number": 28,
+      "title": "28-cабақ. Адам денесі",
+      "youtubeUrl": "https://youtu.be/nIHZZzyKgno"
+    },
+    {
+      "id": "videosab29",
+      "level": "Начальный уровень",
+      "number": 29,
+      "title": "29-cабақ. Жеміс-көкөніс",
+      "youtubeUrl": "https://youtu.be/77OZc5v3uUk"
+    },
+    {
+      "id": "videosabM1_01",
+      "level": "Модуль 1",
+      "number": 1,
+      "title": "Бастауыш. Модуль 1, a. Амандасу, қоштасу",
+      "youtubeUrl": "https://youtu.be/R0NqtSjcRV8"
+    },
+    {
+      "id": "videosabM1_02",
+      "level": "Модуль 1",
+      "number": 2,
+      "title": "Бастауыш. Модуль 1, b. Танысу",
+      "youtubeUrl": "https://youtu.be/Pyen2iXio5g"
+    },
+    {
+      "id": "videosabM1_03",
+      "level": "Модуль 1",
+      "number": 3,
+      "title": "Бастауыш. Модуль 1, c. Халіңіз қалай?",
+      "youtubeUrl": "https://youtu.be/qJZxq9LGPcc"
+    },
+    {
+      "id": "videosabM1_04",
+      "level": "Модуль 1",
+      "number": 4,
+      "title": "Бастауыш. Модуль 1, d. Жақынырақ танысайық",
+      "youtubeUrl": "https://youtu.be/myQ-x16GDKw"
+    },
+    {
+      "id": "videosabM1_05",
+      "level": "Модуль 1",
+      "number": 5,
+      "title": "Бастауыш. Модуль 1, e. Cенің жасың нешеде?",
+      "youtubeUrl": "https://youtu.be/_whVfnbnrrM"
+    },
+    {
+      "id": "videosabM2_01",
+      "level": "Модуль 2",
+      "number": 1,
+      "title": "Бастауыш. Модуль 2, a. Сағат неше?",
+      "youtubeUrl": "https://youtu.be/b3Q_GUEEQk8"
+    },
+    {
+      "id": "videosabM2_02",
+      "level": "Модуль 2",
+      "number": 2,
+      "title": "Бастауыш. Модуль 2, b. Сағат нешеде?",
+      "youtubeUrl": "https://youtu.be/HqRqPMg8-j8"
+    },
+    {
+      "id": "videosabM2_03",
+      "level": "Модуль 2",
+      "number": 3,
+      "title": "Бастауыш. Модуль 2, c. Нешінші орын?",
+      "youtubeUrl": "https://youtu.be/VHBOdWbAjSA"
+    },
+    {
+      "id": "videosabM2_04",
+      "level": "Модуль 2",
+      "number": 4,
+      "title": "Бастауыш. Модуль 2, d. Апта күндері",
+      "youtubeUrl": "https://youtu.be/YyeNcbkqXJs"
+    }
+  ]
+}

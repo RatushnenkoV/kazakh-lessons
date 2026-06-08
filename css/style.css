@@ -1987,3 +1987,108 @@ a { color: inherit; text-decoration: none; }
   white-space: nowrap;
   transition: none;
 }
+
+/* ============================================================
+   LEVEL TABS (A0 / A1)
+   ============================================================ */
+
+.level-tabs-bar {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 24px 0;
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.level-tab-btn {
+  padding: 10px 28px;
+  border-radius: var(--r-pill);
+  font-size: .95rem;
+  font-weight: 800;
+  border: 2px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition);
+  letter-spacing: .02em;
+}
+.level-tab-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-pale);
+}
+.level-tab-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(212,112,90,.35);
+}
+
+/* ============================================================
+   A0 START CARD (on index page)
+   ============================================================ */
+
+.a0-start-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, var(--secondary-pale) 0%, var(--accent-pale) 100%);
+  border: 2px solid var(--secondary-light);
+  border-radius: var(--r-xl);
+  padding: 24px 28px;
+  text-decoration: none;
+  color: inherit;
+  margin-bottom: 16px;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+.a0-start-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-color: var(--secondary);
+}
+.a0-start-card-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.a0-start-card-badge {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--r-md);
+  background: var(--secondary);
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.a0-start-card-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.a0-start-card-sub {
+  font-size: .85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.a0-start-card-arrow {
+  font-size: 1.4rem;
+  color: var(--secondary);
+  font-weight: 900;
+  transition: transform var(--transition);
+}
+.a0-start-card:hover .a0-start-card-arrow {
+  transform: translateX(5px);
+}
+.a0-start-hint {
+  font-size: .9rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-top: 4px;
+}
