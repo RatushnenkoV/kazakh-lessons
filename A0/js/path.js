@@ -149,7 +149,7 @@
       const [bg, sh] = item.color;
       if (item.type === 'banner') {
         const bannerTop = item.isFirst ? item.y : item.y - BANNER_HALF;
-        nodeHtml += `<div class="map-banner-abs" style="top:${bannerTop}px;color:${bg};background:${hexAlpha(bg, 0.12)};border-color:${hexAlpha(bg, 0.4)}">${item.title}</div>`;
+        nodeHtml += `<div class="map-banner-abs" style="top:${bannerTop}px;color:${bg};background:var(--bg-page);border-color:${bg}">${item.title}</div>`;
       } else {
         const s = item.data;
         const status = getStatus(s, ordered);
