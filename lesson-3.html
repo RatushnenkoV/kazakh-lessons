@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 3 — Казахский язык</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header class="site-header">
+    <a href="index.html" class="back-btn">← Уроки</a>
+    <div class="header-lesson-info">
+      <div class="header-lesson-icon" id="header-lesson-icon">🛍️</div>
+      <div>
+        <h1 id="header-lesson-title">Урок 3</h1>
+        <p id="header-lesson-subtitle">Киім дүкенінде және такси</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== TABS NAV ===== -->
+  <nav class="tabs-nav">
+    <button class="tab-btn active" data-tab="lesson">📚 Урок</button>
+    <button class="tab-btn" data-tab="words">🃏 Слова</button>
+    <button class="tab-btn" data-tab="sentences">💬 Предложения</button>
+  </nav>
+
+  <!-- ===== TAB PANES ===== -->
+  <main>
+    <!-- Lesson tab: rendered by lesson.js -->
+    <div id="tab-lesson" class="tab-pane active"></div>
+
+    <!-- Words tab: rendered by flashcards.js (lazy) -->
+    <div id="tab-words" class="tab-pane"></div>
+
+    <!-- Sentences tab: rendered by flashcards.js (lazy) -->
+    <div id="tab-sentences" class="tab-pane"></div>
+  </main>
+
+  <!-- ===== SCRIPTS ===== -->
+  <!-- Data first -->
+  <script src="js/data/lesson-3.js"></script>
+  <!-- Components (no dependencies) -->
+  <script src="js/components.js"></script>
+  <!-- Exercises (depends on KazComponents) -->
+  <script src="js/exercises.js"></script>
+  <!-- Flashcards (no dependencies) -->
+  <script src="js/flashcards.js"></script>
+  <!-- Lesson orchestrator (depends on all above) -->
+  <script src="js/lesson.js"></script>
+  <!-- Init -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      KazLesson.init(3);
+    });
+  </script>
+
+</body>
+</html>

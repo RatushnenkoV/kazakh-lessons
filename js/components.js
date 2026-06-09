@@ -196,6 +196,16 @@ window.KazComponents = (function () {
   }
 
   /* ============================================================
+     IMAGE BLOCK
+     ============================================================ */
+  function renderImage(block) {
+    const src = esc(block.src);
+    const alt = esc(block.alt || '');
+    const caption = block.caption ? `<p class="lesson-image-caption">${esc(block.caption)}</p>` : '';
+    return `<div class="lesson-image-wrap"><img src="${src}" alt="${alt}" class="lesson-image">${caption}</div>`;
+  }
+
+  /* ============================================================
      CALLOUT BLOCK
      ============================================================ */
   function renderCallout(block) {
@@ -255,6 +265,7 @@ window.KazComponents = (function () {
       case 'numbers-table':     return renderNumbersTable(block);
       case 'vocab-emoji':       return renderVocabEmoji(block);
       case 'callout':           return renderCallout(block);
+      case 'image':             return renderImage(block);
       case 'video':             return renderVideo(block);
       case 'link-card':         return renderLinkCard(block);
       case 'exercise':          return ''; // handled separately
