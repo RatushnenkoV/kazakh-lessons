@@ -29,7 +29,7 @@
   // End-of-lesson review queue
   let vocabReviewQueue   = [];
   let vocabReviewFlipped = false;
-  let townWanderTimer    = null;
+  let townActive = false;
 
   // ── localStorage helpers ───────────────────────────────────────────────────
   function getProgress() {
@@ -171,7 +171,7 @@
 
   // ── Render dispatcher ─────────────────────────────────────────────────────
   function renderStep() {
-    if (townWanderTimer) { clearInterval(townWanderTimer); townWanderTimer = null; }
+    townActive = false;
     const body = document.getElementById('lesson-body');
     if (!body) return;
     const step = steps[stepIdx];
@@ -626,24 +626,55 @@
   // ── Practice: find-letters (Town Letter Hunt) ────────────────────────────
   let findState = {};
 
+  // Street intersection waypoints (% of container) — matches town-bg.png grid
+  const TOWN_WP = [
+    {x:21,y:5},  {x:49,y:5},  {x:73,y:5},   // row 0 — top road
+    {x:21,y:30}, {x:49,y:30}, {x:73,y:30},  // row 1
+    {x:21,y:56}, {x:49,y:56}, {x:73,y:56},  // row 2
+    {x:21,y:79}, {x:49,y:79}, {x:73,y:79},  // row 3 — bottom road
+  ];
+  // Adjacency list — connected intersections (horizontal + vertical only)
+  const TOWN_GRAPH = [
+    [1,3],      [0,2,4],    [1,5],
+    [0,4,6],    [1,3,5,7],  [2,4,8],
+    [3,7,9],    [4,6,8,10], [5,7,11],
+    [6,10],     [7,9,11],   [8,10],
+  ];
+  const WALK_MS = 1600; // ms to walk one street segment
+
+  function walkTo(el, nodeIdx) {
+    if (!townActive || el.classList.contains('catching')) return;
+    const wp = TOWN_WP[nodeIdx];
+    el.dataset.node = nodeIdx;
+    el.classList.add('walking');
+    el.style.left = wp.x + '%';
+    el.style.top  = wp.y + '%';
+    setTimeout(() => {
+      if (!townActive || el.classList.contains('catching')) return;
+      el.classList.remove('walking');
+      setTimeout(() => {
+        if (!townActive || el.classList.contains('catching')) return;
+        const nbrs = TOWN_GRAPH[nodeIdx];
+        walkTo(el, nbrs[Math.floor(Math.random() * nbrs.length)]);
+      }, 250 + Math.random() * 600);
+    }, WALK_MS);
+  }
+
   function renderFindLetters(p) {
     const letters = shuffle([...p.letters]);
     const target  = p.target || letters.filter(l => l.kazakh).length;
     findState = { letters, found: 0, target, errors: 0 };
 
-    const hatColors  = ['#e74c3c','#e67e22','#f1c40f','#27ae60','#2980b9','#8e44ad','#16a085','#c0392b','#d35400','#1abc9c','#2c3e50','#e91e63','#6c5ce7','#fd79a8','#00b894','#e17055','#0984e3','#a29bfe'];
-    const bodyColors = ['#ffe8e8','#ffecd2','#fffde7','#e8f8f0','#ebf5fb','#f5eef8','#e8f8f5','#fdedec','#fef5e7','#e8f8f5','#eaecee','#fce4ec','#ede7f6','#fce4ec','#e0f7fa','#fbe9e7','#e3f2fd','#ede7f6'];
-    const bdColors   = ['#c0392b','#d35400','#d4ac0d','#1e8449','#1a5276','#6c3483','#0e6655','#922b21','#a04000','#0f6b55','#212f3d','#b71c1c','#4527a0','#ad1457','#00838f','#bf360c','#0d47a1','#4a148c'];
+    const hatColors  = ['#e74c3c','#e67e22','#f1c40f','#27ae60','#2980b9','#8e44ad','#16a085','#c0392b','#d35400','#1abc9c','#e91e63','#6c5ce7','#fd79a8','#00b894','#e17055','#0984e3','#a29bfe','#2c3e50'];
+    const bodyColors = ['#ffe8e8','#ffecd2','#fffde7','#e8f8f0','#ebf5fb','#f5eef8','#e8f8f5','#fdedec','#fef5e7','#e8f8f5','#fce4ec','#ede7f6','#fce4ec','#e0f7fa','#fbe9e7','#e3f2fd','#ede7f6','#eaecee'];
 
     const charsHtml = letters.map((l, i) => {
-      const x = (5 + Math.random() * 60).toFixed(1);
-      const y = (6 + Math.random() * 38).toFixed(1);
-      return `<button class="lchar walking" id="lc-${i}" data-kazakh="${l.kazakh}"
-        style="left:${x}%;top:${y}%;--hc:${hatColors[i % hatColors.length]};--bc:${bodyColors[i % bodyColors.length]};--bdc:${bdColors[i % bdColors.length]}"
+      const nodeIdx = i % TOWN_WP.length;
+      const wp = TOWN_WP[nodeIdx];
+      return `<button class="lchar" id="lc-${i}" data-kazakh="${l.kazakh}" data-node="${nodeIdx}"
+        style="left:${wp.x}%;top:${wp.y}%;--hc:${hatColors[i % hatColors.length]};--bc:${bodyColors[i % bodyColors.length]}"
         aria-label="${l.char}">
-        <div class="lchar-hat"></div>
         <div class="lchar-body">${l.char}</div>
-        <div class="lchar-feet"><div class="lchar-leg"></div><div class="lchar-leg"></div></div>
       </button>`;
     }).join('');
 
@@ -651,36 +682,11 @@
       `<div class="town-bus-win" id="bwin-${i}"></div>`
     ).join('');
 
-    const bldgs = `
-      <div class="town-bldg" style="left:13%;width:42px;height:78px;background:#d4a0a0">
-        <div class="town-bldg-win" style="top:14px;left:6px"></div>
-        <div class="town-bldg-win" style="top:14px;left:22px"></div>
-        <div class="town-bldg-win" style="top:34px;left:6px"></div>
-        <div class="town-bldg-win" style="top:34px;left:22px"></div>
-      </div>
-      <div class="town-bldg" style="left:34%;width:32px;height:55px;background:#a0b8d4">
-        <div class="town-bldg-win" style="top:12px;left:5px"></div>
-        <div class="town-bldg-win" style="top:12px;left:18px"></div>
-        <div class="town-bldg-win" style="top:30px;left:11px"></div>
-      </div>
-      <div class="town-bldg" style="left:54%;width:48px;height:92px;background:#b8d4a0">
-        <div class="town-bldg-win" style="top:12px;left:6px"></div>
-        <div class="town-bldg-win" style="top:12px;left:24px"></div>
-        <div class="town-bldg-win" style="top:30px;left:6px"></div>
-        <div class="town-bldg-win" style="top:30px;left:24px"></div>
-        <div class="town-bldg-win" style="top:48px;left:14px"></div>
-      </div>`;
-
     return `
       <div class="a0-practice-wrap">
         <div class="a0-practice-icon">🏙️</div>
         <p class="a0-practice-instruction">${p.instruction}</p>
         <div class="town-game" id="town-game">
-          <div class="town-sky"></div>
-          <div class="town-cloud" style="top:7%;left:6%;width:52px"></div>
-          <div class="town-cloud" style="top:14%;left:46%;width:38px;opacity:.72"></div>
-          <div class="town-ground"></div>
-          ${bldgs}
           ${charsHtml}
           <div class="town-bus-wrap" id="town-bus-wrap">
             <div class="town-bus">
@@ -701,17 +707,13 @@
     const game = document.getElementById('town-game');
     if (!game) return;
     const { target } = findState;
+    townActive = true;
 
-    function wander() {
-      game.querySelectorAll('.lchar:not(.catching)').forEach(el => {
-        if (Math.random() < 0.55) {
-          el.style.left = (5  + Math.random() * 60).toFixed(1) + '%';
-          el.style.top  = (6  + Math.random() * 38).toFixed(1) + '%';
-        }
-      });
-    }
-    wander();
-    townWanderTimer = setInterval(wander, 2200);
+    // Start each character walking from its initial waypoint with a staggered delay
+    game.querySelectorAll('.lchar').forEach((el, i) => {
+      const startNode = parseInt(el.dataset.node, 10);
+      setTimeout(() => walkTo(el, startNode), i * 120);
+    });
 
     game.querySelectorAll('.lchar').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -736,7 +738,7 @@
             if (ctr) ctr.textContent = `🎯 ${findState.found} / ${target}`;
 
             if (findState.found >= target) {
-              clearInterval(townWanderTimer); townWanderTimer = null;
+              townActive = false;
               setTimeout(() => {
                 document.getElementById('town-bus-wrap').classList.add('departing');
                 setTimeout(() => {

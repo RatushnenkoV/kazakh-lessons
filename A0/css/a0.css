@@ -611,7 +611,7 @@
   overflow: hidden;
   margin: 8px 0 16px;
   border: 2px solid var(--border);
-  background: #5bb8f5;
+  background: #7ab648 url('../img/town-bg.png') center top / cover no-repeat;
   user-select: none;
   touch-action: manipulation;
 }
@@ -659,8 +659,8 @@
 /* Bus */
 .town-bus-wrap {
   position: absolute;
-  bottom: 36%;
-  right: 10px;
+  bottom: 18%;
+  right: 6px;
   transition: right 1.4s cubic-bezier(.4,0,.6,1);
   z-index: 10;
 }
@@ -734,20 +734,19 @@
 .town-bus-wh.r { right: 18px; }
 .departing .town-bus-wh { animation: bus-roll .35s linear infinite; }
 @keyframes bus-roll { to { transform: rotate(360deg); } }
-/* Letter characters */
+/* Letter characters — top-down view */
 .lchar {
   position: absolute;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 2px;
+  justify-content: center;
+  padding: 0;
   background: none;
   border: none;
   cursor: pointer;
   z-index: 5;
-  transition: left 2.4s ease-in-out, top 2.4s ease-in-out;
+  transition: left 1.6s linear, top 1.6s linear;
   -webkit-tap-highlight-color: transparent;
-  transform-origin: bottom center;
 }
 .lchar.catching {
   transition: left .55s cubic-bezier(.5,0,.8,.6), top .55s cubic-bezier(.5,0,.8,.6), opacity .25s .32s;
@@ -755,35 +754,35 @@
   pointer-events: none;
   z-index: 20;
 }
-.lchar-hat {
-  width: 0; height: 0;
-  border-left: 9px solid transparent;
-  border-right: 9px solid transparent;
-  border-bottom: 12px solid var(--hc, #e74c3c);
-  position: relative;
-}
-.lchar-hat::after {
-  content: '';
-  position: absolute;
-  bottom: -16px; left: -12px;
-  width: 24px; height: 5px;
-  background: var(--hc, #e74c3c);
-  border-radius: 2px;
+.lchar.walking { animation: td-bob .48s ease-in-out infinite; }
+@keyframes td-bob {
+  0%,100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-3px) scale(1.04); }
 }
 .lchar-body {
-  width: 38px; height: 38px;
+  width: 36px; height: 36px;
   background: var(--bc, #fff);
-  border: 2.5px solid var(--bdc, #ccc);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 900;
   color: #333;
-  box-shadow: 0 3px 8px rgba(0,0,0,.18);
-  transition: transform .1s, box-shadow .1s;
-  margin-top: 4px;
+  position: relative;
+  /* Hat ring (seen from above) */
+  box-shadow: 0 0 0 4px var(--hc, #e74c3c), 1px 3px 8px rgba(0,0,0,.35);
+}
+/* Ground shadow */
+.lchar-body::after {
+  content: '';
+  position: absolute;
+  bottom: -7px; left: 3px;
+  width: 76%; height: 9px;
+  background: rgba(0,0,0,.22);
+  border-radius: 50%;
+  filter: blur(3px);
+  z-index: -1;
 }
 .lchar:not(.catching):active .lchar-body { transform: scale(.88); }
 .lchar.wrong .lchar-body { animation: lchar-shake .35s ease; }
@@ -794,17 +793,6 @@
   60%{transform:translateX(-4px)}
   80%{transform:translateX(4px)}
 }
-.lchar-feet { display:flex; gap:8px; margin-top:3px; }
-.lchar-leg {
-  width: 6px; height: 13px;
-  background: var(--bdc, #aaa);
-  border-radius: 3px;
-  transform-origin: top center;
-}
-.lchar.walking .lchar-leg:nth-child(1) { animation: leg-l .55s ease-in-out infinite; }
-.lchar.walking .lchar-leg:nth-child(2) { animation: leg-r .55s ease-in-out infinite; }
-@keyframes leg-l { 0%,100%{transform:rotate(-22deg)} 50%{transform:rotate(22deg)} }
-@keyframes leg-r { 0%,100%{transform:rotate(22deg)} 50%{transform:rotate(-22deg)} }
 /* Town counter */
 .town-counter {
   position: absolute;
