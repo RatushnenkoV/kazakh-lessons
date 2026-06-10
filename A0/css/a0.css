@@ -602,44 +602,221 @@
 .a0-pick-btn.wrong   { border-color: var(--error);   background: #fde8e8; color: var(--error); }
 .a0-pick-btn:disabled { cursor: default; }
 
-/* ── Find-letters practice ── */
-.a0-letters-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
+/* ── Letter Hunt Town Game ── */
+.town-game {
+  position: relative;
+  width: 100%;
+  height: 340px;
+  border-radius: 14px;
+  overflow: hidden;
   margin: 8px 0 16px;
+  border: 2px solid var(--border);
+  background: #5bb8f5;
+  user-select: none;
+  touch-action: manipulation;
 }
-.a0-find-letter {
-  width: 58px;
-  height: 58px;
-  font-size: 1.5rem;
+.town-sky {
+  position: absolute;
+  inset: 0 0 36% 0;
+  background: linear-gradient(180deg, #3fa8e8 0%, #9dd4f2 100%);
+}
+.town-cloud {
+  position: absolute;
+  background: rgba(255,255,255,.88);
+  border-radius: 40px;
+  height: 20px;
+  z-index: 1;
+}
+.town-cloud::before { content:''; position:absolute; background:rgba(255,255,255,.88); border-radius:50%; width:26px; height:26px; top:-12px; left:8px; }
+.town-cloud::after  { content:''; position:absolute; background:rgba(255,255,255,.88); border-radius:50%; width:20px; height:20px; top:-8px;  left:26px; }
+.town-ground {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 36%;
+  background: linear-gradient(180deg, #7cba45 0%, #5a9a28 38%, #909090 38%, #aaa 100%);
+}
+.town-ground::after {
+  content: '';
+  position: absolute;
+  bottom: 4px; left: 8%; right: 8%;
+  height: 5px;
+  background: repeating-linear-gradient(90deg, #fff 0 24px, transparent 24px 48px);
+  opacity: .5;
+}
+.town-bldg {
+  position: absolute;
+  bottom: 36%;
+  border-radius: 3px 3px 0 0;
+  z-index: 2;
+}
+.town-bldg-win {
+  position: absolute;
+  width: 10px; height: 12px;
+  background: #ffd966;
+  border-radius: 2px;
+  border: 1px solid rgba(0,0,0,.18);
+}
+/* Bus */
+.town-bus-wrap {
+  position: absolute;
+  bottom: 36%;
+  right: 10px;
+  transition: right 1.4s cubic-bezier(.4,0,.6,1);
+  z-index: 10;
+}
+.town-bus-wrap.departing { right: -200px; }
+.town-bus {
+  position: relative;
+  width: 108px;
+  height: 56px;
+  background: #FFD700;
+  border: 2.5px solid #c8a800;
+  border-radius: 6px 12px 6px 6px;
+}
+.town-bus::after {
+  content: '';
+  position: absolute;
+  right: -13px; top: 8px;
+  width: 13px; height: 34px;
+  background: #FFD700;
+  border: 2.5px solid #c8a800;
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+}
+.town-bus-sign {
+  position: absolute;
+  top: -18px; left: 2px; right: 2px;
+  background: rgba(255,255,255,.92);
+  border: 1.5px solid #c8a800;
+  border-radius: 3px;
+  text-align: center;
+  font-size: .5rem;
+  font-weight: 800;
+  color: #a06a00;
+  padding: 1px 2px;
+  white-space: nowrap;
+}
+.town-bus-wins {
+  position: absolute;
+  top: 8px; left: 6px;
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  width: 94px;
+}
+.town-bus-win {
+  width: 16px; height: 18px;
+  background: #a8d8f5;
+  border: 1.5px solid #c8a800;
+  border-radius: 2px;
+  font-size: .5rem;
   font-weight: 900;
-  border: 2.5px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--bg-card);
-  color: var(--text);
-  cursor: pointer;
-  transition: all .15s;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #c05a00;
+  transition: background .25s;
 }
-.a0-find-letter:hover:not(.found):not(.wrong-tap) {
-  border-color: var(--secondary);
-  background: var(--secondary-pale);
+.town-bus-win.filled {
+  background: #fffacc;
+  animation: bus-win-pop .3s ease;
 }
-.a0-find-letter.found {
-  border-color: var(--success);
-  background: var(--success-pale);
-  color: var(--success);
-  cursor: default;
-  animation: pair-pop .3s ease;
+@keyframes bus-win-pop { 0%{transform:scale(1)} 50%{transform:scale(1.35)} 100%{transform:scale(1)} }
+.town-bus-wh {
+  position: absolute;
+  bottom: -11px;
+  width: 22px; height: 22px;
+  background: #333;
+  border-radius: 50%;
+  border: 3px solid #777;
 }
-.a0-find-letter.wrong-tap {
-  border-color: var(--error);
-  background: #fde8e8;
-  animation: shake .35s ease;
+.town-bus-wh.l { left: 10px; }
+.town-bus-wh.r { right: 18px; }
+.departing .town-bus-wh { animation: bus-roll .35s linear infinite; }
+@keyframes bus-roll { to { transform: rotate(360deg); } }
+/* Letter characters */
+.lchar {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  z-index: 5;
+  transition: left 2.4s ease-in-out, top 2.4s ease-in-out;
+  -webkit-tap-highlight-color: transparent;
+  transform-origin: bottom center;
+}
+.lchar.catching {
+  transition: left .55s cubic-bezier(.5,0,.8,.6), top .55s cubic-bezier(.5,0,.8,.6), opacity .25s .32s;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+.lchar-hat {
+  width: 0; height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 12px solid var(--hc, #e74c3c);
+  position: relative;
+}
+.lchar-hat::after {
+  content: '';
+  position: absolute;
+  bottom: -16px; left: -12px;
+  width: 24px; height: 5px;
+  background: var(--hc, #e74c3c);
+  border-radius: 2px;
+}
+.lchar-body {
+  width: 38px; height: 38px;
+  background: var(--bc, #fff);
+  border: 2.5px solid var(--bdc, #ccc);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #333;
+  box-shadow: 0 3px 8px rgba(0,0,0,.18);
+  transition: transform .1s, box-shadow .1s;
+  margin-top: 4px;
+}
+.lchar:not(.catching):active .lchar-body { transform: scale(.88); }
+.lchar.wrong .lchar-body { animation: lchar-shake .35s ease; }
+@keyframes lchar-shake {
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-5px)}
+  40%{transform:translateX(5px)}
+  60%{transform:translateX(-4px)}
+  80%{transform:translateX(4px)}
+}
+.lchar-feet { display:flex; gap:8px; margin-top:3px; }
+.lchar-leg {
+  width: 6px; height: 13px;
+  background: var(--bdc, #aaa);
+  border-radius: 3px;
+  transform-origin: top center;
+}
+.lchar.walking .lchar-leg:nth-child(1) { animation: leg-l .55s ease-in-out infinite; }
+.lchar.walking .lchar-leg:nth-child(2) { animation: leg-r .55s ease-in-out infinite; }
+@keyframes leg-l { 0%,100%{transform:rotate(-22deg)} 50%{transform:rotate(22deg)} }
+@keyframes leg-r { 0%,100%{transform:rotate(22deg)} 50%{transform:rotate(-22deg)} }
+/* Town counter */
+.town-counter {
+  position: absolute;
+  top: 8px; left: 8px;
+  background: rgba(255,255,255,.88);
+  border-radius: 20px;
+  padding: 3px 12px;
+  font-size: .78rem;
+  font-weight: 800;
+  color: var(--text);
+  z-index: 15;
+  pointer-events: none;
 }
 
 /* ── Vocab card (shared by pre-lesson and review) ── */

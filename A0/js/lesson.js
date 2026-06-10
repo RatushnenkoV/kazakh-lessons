@@ -29,6 +29,7 @@
   // End-of-lesson review queue
   let vocabReviewQueue   = [];
   let vocabReviewFlipped = false;
+  let townWanderTimer    = null;
 
   // ── localStorage helpers ───────────────────────────────────────────────────
   function getProgress() {
@@ -170,6 +171,7 @@
 
   // ── Render dispatcher ─────────────────────────────────────────────────────
   function renderStep() {
+    if (townWanderTimer) { clearInterval(townWanderTimer); townWanderTimer = null; }
     const body = document.getElementById('lesson-body');
     if (!body) return;
     const step = steps[stepIdx];
@@ -621,47 +623,137 @@
     if (nx) nx.addEventListener('click', goNext);
   }
 
-  // ── Practice: find-letters ────────────────────────────────────────────────
-  // Tap all letters marked kazakh:true. Wrong taps shake.
+  // ── Practice: find-letters (Town Letter Hunt) ────────────────────────────
   let findState = {};
 
   function renderFindLetters(p) {
-    findState = { letters: shuffle([...p.letters]), found: 0, target: p.target || p.letters.filter(l => l.kazakh).length, errors: 0 };
-    const lettersHtml = findState.letters.map((l, i) =>
-      `<button class="a0-find-letter" data-idx="${i}" data-kazakh="${l.kazakh}">${l.char}</button>`
+    const letters = shuffle([...p.letters]);
+    const target  = p.target || letters.filter(l => l.kazakh).length;
+    findState = { letters, found: 0, target, errors: 0 };
+
+    const hatColors  = ['#e74c3c','#e67e22','#f1c40f','#27ae60','#2980b9','#8e44ad','#16a085','#c0392b','#d35400','#1abc9c','#2c3e50','#e91e63','#6c5ce7','#fd79a8','#00b894','#e17055','#0984e3','#a29bfe'];
+    const bodyColors = ['#ffe8e8','#ffecd2','#fffde7','#e8f8f0','#ebf5fb','#f5eef8','#e8f8f5','#fdedec','#fef5e7','#e8f8f5','#eaecee','#fce4ec','#ede7f6','#fce4ec','#e0f7fa','#fbe9e7','#e3f2fd','#ede7f6'];
+    const bdColors   = ['#c0392b','#d35400','#d4ac0d','#1e8449','#1a5276','#6c3483','#0e6655','#922b21','#a04000','#0f6b55','#212f3d','#b71c1c','#4527a0','#ad1457','#00838f','#bf360c','#0d47a1','#4a148c'];
+
+    const charsHtml = letters.map((l, i) => {
+      const x = (5 + Math.random() * 60).toFixed(1);
+      const y = (6 + Math.random() * 38).toFixed(1);
+      return `<button class="lchar walking" id="lc-${i}" data-kazakh="${l.kazakh}"
+        style="left:${x}%;top:${y}%;--hc:${hatColors[i % hatColors.length]};--bc:${bodyColors[i % bodyColors.length]};--bdc:${bdColors[i % bdColors.length]}"
+        aria-label="${l.char}">
+        <div class="lchar-hat"></div>
+        <div class="lchar-body">${l.char}</div>
+        <div class="lchar-feet"><div class="lchar-leg"></div><div class="lchar-leg"></div></div>
+      </button>`;
+    }).join('');
+
+    const busWinsHtml = Array.from({length: target}, (_, i) =>
+      `<div class="town-bus-win" id="bwin-${i}"></div>`
     ).join('');
+
+    const bldgs = `
+      <div class="town-bldg" style="left:13%;width:42px;height:78px;background:#d4a0a0">
+        <div class="town-bldg-win" style="top:14px;left:6px"></div>
+        <div class="town-bldg-win" style="top:14px;left:22px"></div>
+        <div class="town-bldg-win" style="top:34px;left:6px"></div>
+        <div class="town-bldg-win" style="top:34px;left:22px"></div>
+      </div>
+      <div class="town-bldg" style="left:34%;width:32px;height:55px;background:#a0b8d4">
+        <div class="town-bldg-win" style="top:12px;left:5px"></div>
+        <div class="town-bldg-win" style="top:12px;left:18px"></div>
+        <div class="town-bldg-win" style="top:30px;left:11px"></div>
+      </div>
+      <div class="town-bldg" style="left:54%;width:48px;height:92px;background:#b8d4a0">
+        <div class="town-bldg-win" style="top:12px;left:6px"></div>
+        <div class="town-bldg-win" style="top:12px;left:24px"></div>
+        <div class="town-bldg-win" style="top:30px;left:6px"></div>
+        <div class="town-bldg-win" style="top:30px;left:24px"></div>
+        <div class="town-bldg-win" style="top:48px;left:14px"></div>
+      </div>`;
+
     return `
       <div class="a0-practice-wrap">
-        <div class="a0-practice-icon">🔍</div>
+        <div class="a0-practice-icon">🏙️</div>
         <p class="a0-practice-instruction">${p.instruction}</p>
-        <div id="find-counter" class="a0-sort-progress">Найдено: 0 / ${findState.target}</div>
-        <div class="a0-letters-grid">${lettersHtml}</div>
+        <div class="town-game" id="town-game">
+          <div class="town-sky"></div>
+          <div class="town-cloud" style="top:7%;left:6%;width:52px"></div>
+          <div class="town-cloud" style="top:14%;left:46%;width:38px;opacity:.72"></div>
+          <div class="town-ground"></div>
+          ${bldgs}
+          ${charsHtml}
+          <div class="town-bus-wrap" id="town-bus-wrap">
+            <div class="town-bus">
+              <div class="town-bus-sign">🌴 Каникулы!</div>
+              <div class="town-bus-wins" id="town-bus-wins">${busWinsHtml}</div>
+            </div>
+            <div class="town-bus-wh l"></div>
+            <div class="town-bus-wh r"></div>
+          </div>
+          <div class="town-counter" id="town-counter">🎯 0 / ${target}</div>
+        </div>
         <div id="find-feedback" class="a0-practice-feedback"></div>
         <button class="a0-nav-btn" id="btn-next" style="display:none">Продолжить →</button>
       </div>`;
   }
 
   function attachFindLettersListeners() {
-    const body = document.getElementById('lesson-body');
-    if (!body) return;
-    body.querySelectorAll('.a0-find-letter').forEach(btn => {
+    const game = document.getElementById('town-game');
+    if (!game) return;
+    const { target } = findState;
+
+    function wander() {
+      game.querySelectorAll('.lchar:not(.catching)').forEach(el => {
+        if (Math.random() < 0.55) {
+          el.style.left = (5  + Math.random() * 60).toFixed(1) + '%';
+          el.style.top  = (6  + Math.random() * 38).toFixed(1) + '%';
+        }
+      });
+    }
+    wander();
+    townWanderTimer = setInterval(wander, 2200);
+
+    game.querySelectorAll('.lchar').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (btn.classList.contains('found') || btn.classList.contains('wrong-tap')) return;
+        if (btn.classList.contains('catching')) return;
         const isKazakh = btn.dataset.kazakh === 'true';
+
         if (isKazakh) {
-          btn.classList.add('found');
           findState.found++;
-          const counter = document.getElementById('find-counter');
-          if (counter) counter.textContent = `Найдено: ${findState.found} / ${findState.target}`;
-          if (findState.found >= findState.target) {
-            const fb = document.getElementById('find-feedback');
-            if (fb) fb.textContent = findState.errors === 0 ? '🎉 Все нашёл!' : '✓ Готово!';
-            document.getElementById('btn-next').style.display = '';
-          }
+          const slot = findState.found - 1;
+          const char = btn.querySelector('.lchar-body').textContent;
+
+          const gr = game.getBoundingClientRect();
+          const br = document.getElementById('town-bus-wrap').getBoundingClientRect();
+          btn.classList.add('catching');
+          btn.style.left = ((br.left + br.width  * .5 - gr.left) / gr.width  * 100).toFixed(1) + '%';
+          btn.style.top  = ((br.top  + br.height * .5 - gr.top)  / gr.height * 100).toFixed(1) + '%';
+
+          setTimeout(() => {
+            const win = document.getElementById(`bwin-${slot}`);
+            if (win) { win.textContent = char; win.classList.add('filled'); }
+            const ctr = document.getElementById('town-counter');
+            if (ctr) ctr.textContent = `🎯 ${findState.found} / ${target}`;
+
+            if (findState.found >= target) {
+              clearInterval(townWanderTimer); townWanderTimer = null;
+              setTimeout(() => {
+                document.getElementById('town-bus-wrap').classList.add('departing');
+                setTimeout(() => {
+                  const fb = document.getElementById('find-feedback');
+                  if (fb) fb.textContent = findState.errors === 0
+                    ? '🎉 Все казахские буквы уехали в отпуск!'
+                    : '✓ Готово! Автобус уехал!';
+                  document.getElementById('btn-next').style.display = '';
+                }, 1400);
+              }, 500);
+            }
+          }, 580);
+
         } else {
           findState.errors++;
-          btn.classList.add('wrong-tap');
-          setTimeout(() => btn.classList.remove('wrong-tap'), 600);
+          btn.classList.add('wrong');
+          setTimeout(() => btn.classList.remove('wrong'), 420);
         }
       });
     });
