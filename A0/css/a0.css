@@ -734,12 +734,12 @@
 .town-bus-wh.r { right: 18px; }
 .departing .town-bus-wh { animation: bus-roll .35s linear infinite; }
 @keyframes bus-roll { to { transform: rotate(360deg); } }
-/* Letter characters — top-down view */
+/* Letter characters */
 .lchar {
   position: absolute;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
   padding: 0;
   background: none;
   border: none;
@@ -747,6 +747,7 @@
   z-index: 5;
   transition: left 1.6s linear, top 1.6s linear;
   -webkit-tap-highlight-color: transparent;
+  transform-origin: bottom center;
 }
 .lchar.catching {
   transition: left .55s cubic-bezier(.5,0,.8,.6), top .55s cubic-bezier(.5,0,.8,.6), opacity .25s .32s;
@@ -754,14 +755,25 @@
   pointer-events: none;
   z-index: 20;
 }
-.lchar.walking { animation: td-bob .48s ease-in-out infinite; }
-@keyframes td-bob {
-  0%,100% { transform: translateY(0) scale(1); }
-  50%      { transform: translateY(-3px) scale(1.04); }
+.lchar-hat {
+  width: 0; height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 12px solid var(--hc, #e74c3c);
+  position: relative;
+}
+.lchar-hat::after {
+  content: '';
+  position: absolute;
+  bottom: -16px; left: -12px;
+  width: 24px; height: 5px;
+  background: var(--hc, #e74c3c);
+  border-radius: 2px;
 }
 .lchar-body {
   width: 36px; height: 36px;
   background: var(--bc, #fff);
+  border: 2.5px solid var(--hc, #ccc);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -769,20 +781,8 @@
   font-size: 1.05rem;
   font-weight: 900;
   color: #333;
-  position: relative;
-  /* Hat ring (seen from above) */
-  box-shadow: 0 0 0 4px var(--hc, #e74c3c), 1px 3px 8px rgba(0,0,0,.35);
-}
-/* Ground shadow */
-.lchar-body::after {
-  content: '';
-  position: absolute;
-  bottom: -7px; left: 3px;
-  width: 76%; height: 9px;
-  background: rgba(0,0,0,.22);
-  border-radius: 50%;
-  filter: blur(3px);
-  z-index: -1;
+  box-shadow: 1px 2px 6px rgba(0,0,0,.28);
+  margin-top: 4px;
 }
 .lchar:not(.catching):active .lchar-body { transform: scale(.88); }
 .lchar.wrong .lchar-body { animation: lchar-shake .35s ease; }
@@ -793,6 +793,36 @@
   60%{transform:translateX(-4px)}
   80%{transform:translateX(4px)}
 }
+.lchar-feet { display:flex; gap:8px; margin-top:3px; }
+.lchar-leg {
+  width: 6px; height: 13px;
+  background: var(--hc, #aaa);
+  border-radius: 3px;
+  transform-origin: top center;
+}
+.lchar.walking .lchar-leg:nth-child(1) { animation: leg-l .55s ease-in-out infinite; }
+.lchar.walking .lchar-leg:nth-child(2) { animation: leg-r .55s ease-in-out infinite; }
+@keyframes leg-l { 0%,100%{transform:rotate(-22deg)} 50%{transform:rotate(22deg)} }
+@keyframes leg-r { 0%,100%{transform:rotate(22deg)} 50%{transform:rotate(-22deg)} }
+/* Caught letters collection below the map */
+.town-caught {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  justify-content: center;
+  padding: 10px 8px 4px;
+  min-height: 44px;
+}
+.tc-letter {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--bc, #fff);
+  box-shadow: 0 0 0 3px var(--hc, #e74c3c);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .9rem; font-weight: 900; color: #333;
+  animation: tc-pop .3s ease;
+}
+@keyframes tc-pop { 0%{transform:scale(0)} 70%{transform:scale(1.2)} 100%{transform:scale(1)} }
 /* Town counter */
 .town-counter {
   position: absolute;

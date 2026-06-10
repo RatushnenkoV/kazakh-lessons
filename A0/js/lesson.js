@@ -626,20 +626,20 @@
   // ── Practice: find-letters (Town Letter Hunt) ────────────────────────────
   let findState = {};
 
-  // Street intersection waypoints (% of container) — matches town-bg.png grid
+  // Street intersection waypoints (% of container) — derived from town-bg.png pixel analysis
+  // Vertical streets at image x≈22%,45%,83%; horizontal streets at y≈29%,52%,77%
   const TOWN_WP = [
-    {x:21,y:5},  {x:49,y:5},  {x:73,y:5},   // row 0 — top road
-    {x:21,y:30}, {x:49,y:30}, {x:73,y:30},  // row 1
-    {x:21,y:56}, {x:49,y:56}, {x:73,y:56},  // row 2
-    {x:21,y:79}, {x:49,y:79}, {x:73,y:79},  // row 3 — bottom road
+    {x:18,y:29}, {x:44,y:29}, {x:83,y:29},  // row 0
+    {x:18,y:52}, {x:44,y:52}, {x:83,y:52},  // row 1
+    {x:18,y:77}, {x:44,y:77}, {x:83,y:77},  // row 2
   ];
-  // Adjacency list — connected intersections (horizontal + vertical only)
-  const TOWN_GRAPH = [
-    [1,3],      [0,2,4],    [1,5],
-    [0,4,6],    [1,3,5,7],  [2,4,8],
-    [3,7,9],    [4,6,8,10], [5,7,11],
-    [6,10],     [7,9,11],   [8,10],
+  // Rebuild graph for 3×3 grid
+  const TOWN_GRAPH_3x3 = [
+    [1,3],    [0,2,4],  [1,5],
+    [0,4,6],  [1,3,5,7],[2,4,8],
+    [3,7],    [4,6,8],  [5,7],
   ];
+  const TOWN_GRAPH = TOWN_GRAPH_3x3;
   const WALK_MS = 1600; // ms to walk one street segment
 
   function walkTo(el, nodeIdx) {
@@ -671,16 +671,17 @@
     const charsHtml = letters.map((l, i) => {
       const nodeIdx = i % TOWN_WP.length;
       const wp = TOWN_WP[nodeIdx];
+      const hc = hatColors[i % hatColors.length];
+      const bc = bodyColors[i % bodyColors.length];
       return `<button class="lchar" id="lc-${i}" data-kazakh="${l.kazakh}" data-node="${nodeIdx}"
-        style="left:${wp.x}%;top:${wp.y}%;--hc:${hatColors[i % hatColors.length]};--bc:${bodyColors[i % bodyColors.length]}"
+        data-hc="${hc}" data-bc="${bc}"
+        style="left:${wp.x}%;top:${wp.y}%;--hc:${hc};--bc:${bc}"
         aria-label="${l.char}">
+        <div class="lchar-hat"></div>
         <div class="lchar-body">${l.char}</div>
+        <div class="lchar-feet"><div class="lchar-leg"></div><div class="lchar-leg"></div></div>
       </button>`;
     }).join('');
-
-    const busWinsHtml = Array.from({length: target}, (_, i) =>
-      `<div class="town-bus-win" id="bwin-${i}"></div>`
-    ).join('');
 
     return `
       <div class="a0-practice-wrap">
@@ -688,17 +689,9 @@
         <p class="a0-practice-instruction">${p.instruction}</p>
         <div class="town-game" id="town-game">
           ${charsHtml}
-          <div class="town-bus-wrap" id="town-bus-wrap">
-            <div class="town-bus">
-              <div class="town-bus-sign">🌴 Каникулы!</div>
-              <div class="town-bus-wins" id="town-bus-wins">${busWinsHtml}</div>
-            </div>
-            <div class="town-bus-wh l"></div>
-            <div class="town-bus-wh r"></div>
-          </div>
           <div class="town-counter" id="town-counter">🎯 0 / ${target}</div>
         </div>
-        <div id="find-feedback" class="a0-practice-feedback"></div>
+        <div class="town-caught" id="town-caught"></div>
         <button class="a0-nav-btn" id="btn-next" style="display:none">Продолжить →</button>
       </div>`;
   }
@@ -722,33 +715,33 @@
 
         if (isKazakh) {
           findState.found++;
-          const slot = findState.found - 1;
           const char = btn.querySelector('.lchar-body').textContent;
+          const hc = btn.dataset.hc;
+          const bc = btn.dataset.bc;
 
-          const gr = game.getBoundingClientRect();
-          const br = document.getElementById('town-bus-wrap').getBoundingClientRect();
+          // Fly to bottom-center of the game area
           btn.classList.add('catching');
-          btn.style.left = ((br.left + br.width  * .5 - gr.left) / gr.width  * 100).toFixed(1) + '%';
-          btn.style.top  = ((br.top  + br.height * .5 - gr.top)  / gr.height * 100).toFixed(1) + '%';
+          btn.style.left = '50%';
+          btn.style.top  = '110%';
 
           setTimeout(() => {
-            const win = document.getElementById(`bwin-${slot}`);
-            if (win) { win.textContent = char; win.classList.add('filled'); }
+            // Appear in the collection strip below the map
+            const caught = document.getElementById('town-caught');
+            if (caught) {
+              const span = document.createElement('span');
+              span.className = 'tc-letter';
+              span.style.cssText = `--hc:${hc};--bc:${bc}`;
+              span.textContent = char;
+              caught.appendChild(span);
+            }
             const ctr = document.getElementById('town-counter');
             if (ctr) ctr.textContent = `🎯 ${findState.found} / ${target}`;
 
             if (findState.found >= target) {
               townActive = false;
               setTimeout(() => {
-                document.getElementById('town-bus-wrap').classList.add('departing');
-                setTimeout(() => {
-                  const fb = document.getElementById('find-feedback');
-                  if (fb) fb.textContent = findState.errors === 0
-                    ? '🎉 Все казахские буквы уехали в отпуск!'
-                    : '✓ Готово! Автобус уехал!';
-                  document.getElementById('btn-next').style.display = '';
-                }, 1400);
-              }, 500);
+                document.getElementById('btn-next').style.display = '';
+              }, 400);
             }
           }, 580);
 
