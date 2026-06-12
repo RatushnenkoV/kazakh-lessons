@@ -130,6 +130,11 @@
       if (sec.sentences.length >= 3) list.push({ type: 'exercise' });
     }
 
+    // Exercises from kaz-tili.kz — one step per exercise, max 2 exercises
+    if (sec.kazExercises) {
+      sec.kazExercises.forEach(ex => list.push({ type: 'kaz-exercise', ex }));
+    }
+
     // Post-lesson review: 5 random previously learned words
     const reviewWords = getRandomLearnedWords(5);
     if (reviewWords.length > 0) list.push({ type: 'vocab-review', words: reviewWords });
@@ -188,6 +193,7 @@
       case 'vocab':        initVocab(); html = renderVocabFrame();                 break;
       case 'vocab-review': initVocabReview(step.words); html = renderVocabReviewFrame(); break;
       case 'exercise':     html = renderExercise();                                break;
+      case 'kaz-exercise': html = renderKazExercise(step.ex);                     break;
       case 'complete':     markDone(section.id); html = renderComplete();          break;
     }
 
@@ -1374,7 +1380,8 @@
       if (p.type === 'find-letters') attachFindLettersListeners();
     }
 
-    if (type === 'video') loadVideoUrl();
+    if (type === 'video')        loadVideoUrl();
+    if (type === 'kaz-exercise') attachKazExerciseListeners();
   }
 
   async function loadVideoUrl() {
@@ -1414,6 +1421,89 @@
       .replace(/"/g, '&quot;');
   }
 
+  // ── Step: kaz-exercise (from kaz-tili.kz exercise files) ─────────────────
+  function renderKazExercise(ex) {
+    const MAX = 8;
+    const hasWords  = ex.words  && ex.answers;
+    const hasItems  = ex.items  && ex.answers;
+    let rowsHtml = '';
+
+    if (hasWords) {
+      ex.words.slice(0, MAX).forEach((w, i) => {
+        rowsHtml += `<div class="ke-row">
+          <span class="ke-prompt">${escHtml(w)}</span>
+          <span class="ke-arrow">→</span>
+          <input class="ke-input" data-answer="${escHtml(ex.answers[i])}" data-i="${i}" autocomplete="off" spellcheck="false">
+        </div>`;
+      });
+    } else if (hasItems) {
+      ex.items.slice(0, MAX).forEach((item, i) => {
+        if (item.includes('___')) {
+          const [pre, post] = item.split('___');
+          rowsHtml += `<div class="ke-row ke-inline">
+            <span class="ke-frag">${escHtml(pre)}</span><input class="ke-input ke-input-sm" data-answer="${escHtml(ex.answers[i])}" data-i="${i}" autocomplete="off" spellcheck="false"><span class="ke-frag">${escHtml(post || '')}</span>
+          </div>`;
+        } else {
+          rowsHtml += `<div class="ke-row">
+            <span class="ke-prompt">${escHtml(item)}</span>
+            <span class="ke-arrow">→</span>
+            <input class="ke-input" data-answer="${escHtml(ex.answers[i])}" data-i="${i}" autocomplete="off" spellcheck="false">
+          </div>`;
+        }
+      });
+    }
+
+    return `
+      <div class="ke-wrap">
+        <div class="ke-icon">✏️</div>
+        <p class="ke-task">${escHtml(ex.task)}</p>
+        <div class="ke-list">${rowsHtml}</div>
+        <div class="ke-actions">
+          <button class="ke-check-btn" id="ke-check">Проверить</button>
+          <button class="a0-nav-btn" id="btn-next" style="display:none">Продолжить →</button>
+        </div>
+      </div>`;
+  }
+
+  function attachKazExerciseListeners() {
+    const body = document.getElementById('lesson-body');
+    if (!body) return;
+
+    const inputs = body.querySelectorAll('.ke-input');
+
+    // Enter → next input
+    inputs.forEach((inp, idx) => {
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); const next = inputs[idx + 1]; if (next) next.focus(); }
+      });
+    });
+
+    const checkBtn = document.getElementById('ke-check');
+    if (!checkBtn) return;
+    checkBtn.addEventListener('click', () => {
+      inputs.forEach(inp => {
+        const correct = inp.value.trim().toLowerCase() === inp.dataset.answer.toLowerCase();
+        inp.classList.toggle('ke-correct', correct);
+        inp.classList.toggle('ke-wrong',   !correct);
+        // show/hide reveal label
+        let rev = inp.nextElementSibling;
+        if (correct) {
+          if (rev && rev.classList.contains('ke-reveal')) rev.remove();
+        } else {
+          if (!rev || !rev.classList.contains('ke-reveal')) {
+            rev = document.createElement('span');
+            rev.className = 'ke-reveal';
+            inp.after(rev);
+          }
+          rev.textContent = inp.dataset.answer;
+        }
+      });
+      checkBtn.style.display = 'none';
+      const nextBtn = document.getElementById('btn-next');
+      if (nextBtn) nextBtn.style.display = '';
+    });
+  }
+
   // ── Init ──────────────────────────────────────────────────────────────────
   async function init() {
     if (!sectionId) {
@@ -1421,11 +1511,29 @@
       return;
     }
     try {
-      const resp = await fetch(DATA_URL);
-      const data = await resp.json();
+      const [grammarResp, mapResp] = await Promise.all([
+        fetch(DATA_URL),
+        fetch('kaz-content/exercises/sections_map.json').catch(() => null),
+      ]);
+      const data = await grammarResp.json();
       allSections = data.sections;
       section = allSections.find(s => s.id === sectionId);
       if (!section) throw new Error('Section not found');
+
+      // Load up to 2 exercises for this section (words or items format only)
+      if (mapResp && mapResp.ok) {
+        try {
+          const exMap  = await mapResp.json();
+          const exFile = exMap[sectionId];
+          if (exFile) {
+            const exResp = await fetch(`kaz-content/exercises/${exFile}`);
+            const exData = await exResp.json();
+            section.kazExercises = (exData.exercises || [])
+              .filter(ex => (ex.words && ex.answers) || (ex.items && ex.answers))
+              .slice(0, 2);
+          }
+        } catch {}
+      }
 
       document.title = `${section.title} · A0`;
       steps = buildSteps(section);

@@ -1385,3 +1385,100 @@
 .map-node.done      .map-node-label { color: #46a302; }
 .map-node.available .map-node-label { color: var(--text); font-weight: 800; }
 .map-node.locked    .map-node-label { color: var(--text-light); opacity: .55; }
+
+/* ── kaz-exercise step ──────────────────────────────────────────────────── */
+.ke-wrap {
+  max-width: 640px;
+  margin: 0 auto;
+  padding-bottom: 32px;
+}
+.ke-icon {
+  font-size: 2.4rem;
+  text-align: center;
+  margin-bottom: 10px;
+}
+.ke-task {
+  font-size: .93rem;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  margin: 0 0 20px;
+}
+.ke-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.ke-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ke-inline {
+  align-items: baseline;
+  gap: 3px;
+}
+.ke-prompt {
+  font-size: .95rem;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 90px;
+}
+.ke-arrow {
+  color: var(--text-muted);
+  font-size: .82rem;
+  flex-shrink: 0;
+}
+.ke-frag {
+  font-size: .95rem;
+  color: var(--text);
+}
+.ke-input {
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 6px 10px;
+  font-size: .95rem;
+  font-family: inherit;
+  background: var(--bg-card);
+  color: var(--text);
+  outline: none;
+  min-width: 130px;
+  transition: border-color .15s;
+}
+.ke-input-sm { min-width: 70px; width: 80px; }
+.ke-input:focus { border-color: var(--accent); }
+.ke-input.ke-correct {
+  border-color: var(--success);
+  background: var(--success-pale);
+  color: var(--success);
+}
+.ke-input.ke-wrong {
+  border-color: var(--error);
+  background: var(--error-pale);
+}
+.ke-reveal {
+  font-size: .82rem;
+  color: var(--error);
+  font-weight: 700;
+  margin-left: 4px;
+}
+.ke-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 4px;
+}
+.ke-check-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-pill);
+  padding: 12px 32px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.ke-check-btn:hover { opacity: .88; }
