@@ -1386,6 +1386,24 @@
 .map-node.available .map-node-label { color: var(--text); font-weight: 800; }
 .map-node.locked    .map-node-label { color: var(--text-light); opacity: .55; }
 
+/* ── Skip button ────────────────────────────────────────────────────────── */
+.a0-skip-row {
+  text-align: right;
+  margin-bottom: 8px;
+}
+.a0-skip-btn {
+  background: none;
+  border: none;
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 0;
+  opacity: .7;
+  transition: opacity .15s;
+}
+.a0-skip-btn:hover { opacity: 1; color: var(--accent); }
+
 /* ── kaz-exercise step ──────────────────────────────────────────────────── */
 .ke-wrap {
   max-width: 640px;

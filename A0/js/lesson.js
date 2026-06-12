@@ -770,6 +770,7 @@
 
   function renderVocabPreFrame() {
     return `
+      <div class="a0-skip-row"><button class="a0-skip-btn" id="btn-skip">Пропустить →</button></div>
       <div class="a0-vocab-section-header">
         <h3>Слова этого урока</h3>
         <p>Учи по кругу, пока все не станут «Знаю»</p>
@@ -920,6 +921,7 @@
 
   function renderVocabReviewFrame() {
     return `
+      <div class="a0-skip-row"><button class="a0-skip-btn" id="btn-skip">Пропустить →</button></div>
       <div class="a0-vocab-section-header">
         <h3>Закрепление</h3>
         <p>Вспомни слова из прошлых уроков</p>
@@ -1121,6 +1123,7 @@
 
   function renderVocabFrame() {
     return `
+      <div class="a0-skip-row"><button class="a0-skip-btn" id="btn-skip">Пропустить →</button></div>
       <div class="a0-vocab-header">
         <h3>Слова урока</h3>
         <p>Нажми на карточку, чтобы увидеть перевод</p>
@@ -1221,7 +1224,7 @@
     // Pick up to 5 random sentences
     exerciseSentences = shuffle(section.sentences).slice(0, 5);
     exIdx = 0; exScore = 0; exTotal = exerciseSentences.length;
-    return renderExerciseItem();
+    return `<div class="a0-skip-row"><button class="a0-skip-btn" id="btn-skip">Пропустить →</button></div>` + renderExerciseItem();
   }
 
   function renderExerciseItem() {
@@ -1366,6 +1369,9 @@
       btn.addEventListener('click', goNext);
     }
 
+    const skipBtn = document.getElementById('btn-skip');
+    if (skipBtn) skipBtn.addEventListener('click', goNext);
+
     if (type === 'vocab')        attachVocabListeners();
     if (type === 'vocab-pre')    attachVocabPreListeners();
     if (type === 'vocab-review') attachVocabReviewListeners();
@@ -1455,6 +1461,7 @@
 
     return `
       <div class="ke-wrap">
+        <div class="a0-skip-row"><button class="a0-skip-btn" id="btn-skip">Пропустить →</button></div>
         <div class="ke-icon">✏️</div>
         <p class="ke-task">${escHtml(ex.task)}</p>
         <div class="ke-list">${rowsHtml}</div>
