@@ -83,20 +83,4 @@ window.KazApp = (function () {
 
 document.addEventListener('DOMContentLoaded', () => {
   KazApp.init();
-  // Tab switching is part of init flow
-  (function initTabs() {
-    const tabs = document.querySelectorAll('.level-tab-btn');
-    const sA1 = document.getElementById('section-a1');
-    if (!tabs.length) return;
-    function setLevel(level) {
-      tabs.forEach(t => t.classList.toggle('active', t.dataset.level === level));
-      if (sA1) sA1.style.display = level === 'a1' ? '' : 'none';
-      localStorage.setItem('kaz-level', level);
-    }
-    tabs.forEach(t => t.addEventListener('click', () => {
-      if (t.dataset.level === 'a0') { location.href = 'A0/index.html'; return; }
-      setLevel(t.dataset.level);
-    }));
-    setLevel(localStorage.getItem('kaz-level') || 'a1');
-  }());
 });
