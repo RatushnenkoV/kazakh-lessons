@@ -1716,8 +1716,10 @@
       // Load up to 2 exercises for this section (words or items format only)
       if (mapResp && mapResp.ok) {
         try {
-          const exMap  = await mapResp.json();
-          const exFile = exMap[sectionId];
+          const exMap   = await mapResp.json();
+          const entry   = exMap[sectionId];
+          const exFile  = entry && (typeof entry === 'string' ? entry : entry.file);
+          const maxEx   = entry && typeof entry === 'object' && entry.max != null ? entry.max : 2;
           if (exFile) {
             const exResp = await fetch(`kaz-content/exercises/${exFile}`);
             const exData = await exResp.json();
@@ -1727,7 +1729,7 @@
                 (ex.items && Array.isArray(ex.answers)) ||
                 (ex.words && ex.answers && !Array.isArray(ex.answers) && typeof ex.answers === 'object')
               )
-              .slice(0, 2);
+              .slice(0, maxEx);
           }
         } catch {}
       }

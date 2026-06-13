@@ -1,5 +1,5 @@
 {
-  "su_prav":   "01_assimilyatsiya.json",
+  "su_prav":   { "file": "01_assimilyatsiya.json", "max": 1 },
   "su_prit":   "02_prityazhatelnye.json",
   "su_mesto1": "03_ishodny_padezh.json",
   "su_mesto2": "04_mestny_padezh.json",
