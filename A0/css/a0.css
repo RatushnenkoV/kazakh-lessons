@@ -1463,9 +1463,19 @@
   color: var(--text);
   outline: none;
   min-width: 130px;
+  flex: 1;
+  max-width: 280px;
   transition: border-color .15s;
 }
-.ke-input-sm { min-width: 70px; width: 80px; }
+.ke-input-sm { min-width: 60px; width: 80px; flex: none; }
+
+@media (max-width: 480px) {
+  .ke-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .ke-arrow { display: none; }
+  .ke-input { max-width: 100%; width: 100%; box-sizing: border-box; }
+  .ke-inline { flex-direction: row; flex-wrap: wrap; align-items: baseline; }
+  .ke-inline .ke-input { flex: none; width: 80px; }
+}
 .ke-input:focus { border-color: var(--accent); }
 .ke-input.ke-correct {
   border-color: var(--success);

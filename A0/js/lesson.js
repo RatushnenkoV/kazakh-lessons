@@ -1539,7 +1539,10 @@
             const exResp = await fetch(`kaz-content/exercises/${exFile}`);
             const exData = await exResp.json();
             section.kazExercises = (exData.exercises || [])
-              .filter(ex => (ex.words && ex.answers) || (ex.items && ex.answers))
+              .filter(ex =>
+                (ex.words && Array.isArray(ex.answers)) ||
+                (ex.items && Array.isArray(ex.answers))
+              )
               .slice(0, 2);
           }
         } catch {}
