@@ -1430,8 +1430,150 @@
       .replace(/"/g, '&quot;');
   }
 
-  // ── Step: kaz-exercise (from kaz-tili.kz exercise files) ─────────────────
+  // ── Step: kaz-exercise — sort-groups (drag cards into group buckets) ──────
+  let sgState = {};
+
+  function renderSortGroups(ex) {
+    const MAX_CARDS = 12;
+    const groups = Object.keys(ex.answers);
+
+    // Build word (lowercase, no translation) → groupIdx lookup
+    const wordToGroup = {};
+    groups.forEach((g, gi) => {
+      ex.answers[g].forEach(entry => {
+        const base = entry.split('(')[0].trim().toLowerCase();
+        wordToGroup[base] = gi;
+      });
+    });
+
+    const items = shuffle(ex.words.slice(0, MAX_CARDS).map(w => ({
+      word: w,
+      groupIdx: wordToGroup[w.toLowerCase()] ?? -1,
+    })));
+
+    sgState = { items, placed: new Set(), errors: 0, total: items.length };
+
+    const poolHtml = items.map((item, i) =>
+      `<div class="a0-pool-card" data-idx="${i}" style="touch-action:none">
+        <div class="a0-sort-word">${escHtml(item.word)}</div>
+      </div>`
+    ).join('');
+
+    const basketsHtml = groups.map((g, gi) =>
+      `<div class="a0-basket" id="basket-${gi}" data-choice="${gi}">
+        <div class="a0-basket-label">${escHtml(g)}</div>
+        <div class="a0-basket-chips" id="chips-${gi}"></div>
+      </div>`
+    ).join('');
+
+    return `
+      <div class="ke-wrap">
+        <div class="a0-skip-row"><button class="a0-skip-btn" id="btn-skip">Пропустить →</button></div>
+        <div class="ke-icon">🗂️</div>
+        <p class="ke-task">${escHtml(ex.task)}</p>
+        <div class="a0-sort-pool" id="sort-pool">${poolHtml}</div>
+        <div class="a0-baskets">${basketsHtml}</div>
+        <div id="sort-feedback" class="a0-practice-feedback"></div>
+        <button class="a0-nav-btn" id="btn-next" style="display:none">Продолжить →</button>
+      </div>`;
+  }
+
+  function attachSortGroupsListeners() {
+    const body = document.getElementById('lesson-body');
+    if (!body) return;
+    body.querySelectorAll('.a0-pool-card').forEach((card, i) => {
+      let clone = null, startX = 0, startY = 0, hasMoved = false;
+
+      card.addEventListener('pointerdown', e => {
+        startX = e.clientX; startY = e.clientY;
+        hasMoved = false;
+        card.setPointerCapture(e.pointerId);
+      });
+
+      card.addEventListener('pointermove', e => {
+        const dx = e.clientX - startX, dy = e.clientY - startY;
+        if (!hasMoved && Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+        if (!hasMoved) {
+          hasMoved = true;
+          card.style.opacity = '.35';
+          const r = card.getBoundingClientRect();
+          clone = card.cloneNode(true);
+          Object.assign(clone.style, {
+            position: 'fixed', left: r.left + 'px', top: r.top + 'px',
+            width: r.width + 'px', margin: '0', pointerEvents: 'none',
+            zIndex: '9999', opacity: '0.92', transition: 'none',
+            boxShadow: '0 10px 32px rgba(0,0,0,.22)',
+          });
+          document.body.appendChild(clone);
+        }
+        const rot = Math.max(-14, Math.min(14, dx * 0.04));
+        clone.style.transform = `translate(${dx}px,${dy}px) rotate(${rot}deg) scale(1.06)`;
+        document.querySelectorAll('.a0-basket').forEach(b => {
+          const r2 = b.getBoundingClientRect();
+          b.classList.toggle('drag-over',
+            e.clientX > r2.left && e.clientX < r2.right &&
+            e.clientY > r2.top  && e.clientY < r2.bottom);
+        });
+      });
+
+      function settle(e) {
+        if (clone) { clone.remove(); clone = null; }
+        card.style.opacity = '1';
+        if (!hasMoved) return;
+        hasMoved = false;
+
+        let chosen = null;
+        document.querySelectorAll('.a0-basket').forEach(b => {
+          b.classList.remove('drag-over');
+          const r = b.getBoundingClientRect();
+          if (e.clientX > r.left && e.clientX < r.right &&
+              e.clientY > r.top  && e.clientY < r.bottom) chosen = b;
+        });
+        if (!chosen) return;
+
+        const item = sgState.items[parseInt(card.dataset.idx)];
+        const correct = parseInt(chosen.dataset.choice) === item.groupIdx;
+        const fb = document.getElementById('sort-feedback');
+
+        if (correct) {
+          sgState.placed.add(parseInt(card.dataset.idx));
+          const chipsEl = document.getElementById(`chips-${item.groupIdx}`);
+          if (chipsEl) {
+            const chip = document.createElement('div');
+            chip.className = 'a0-basket-chip';
+            chip.textContent = item.word;
+            chipsEl.appendChild(chip);
+          }
+          card.style.transition = 'transform .18s ease, opacity .22s ease';
+          card.style.opacity = '0';
+          card.style.transform = 'scale(0.4)';
+          setTimeout(() => card.remove(), 250);
+          chosen.classList.add('basket-success');
+          setTimeout(() => chosen.classList.remove('basket-success'), 500);
+          if (sgState.placed.size === sgState.total) {
+            if (fb) { fb.textContent = sgState.errors === 0 ? '🎉 Всё правильно!' : '✓ Разложено!'; fb.className = 'a0-practice-feedback correct'; }
+            const nx = document.getElementById('btn-next');
+            if (nx) nx.style.display = '';
+          } else {
+            if (fb) { fb.textContent = '✓ Верно!'; fb.className = 'a0-practice-feedback correct'; setTimeout(() => { if (fb.textContent === '✓ Верно!') fb.textContent = ''; }, 700); }
+          }
+        } else {
+          sgState.errors++;
+          card.classList.add('shake');
+          chosen.classList.add('basket-error');
+          setTimeout(() => { card.classList.remove('shake'); chosen.classList.remove('basket-error'); }, 500);
+          if (fb) { fb.textContent = `✗ Не сюда`; fb.className = 'a0-practice-feedback wrong'; setTimeout(() => { if (fb.textContent === '✗ Не сюда') fb.textContent = ''; }, 900); }
+        }
+      }
+
+      card.addEventListener('pointerup', settle);
+      card.addEventListener('pointercancel', settle);
+    });
+  }
+
+  // ── Step: kaz-exercise — word-transform / fill-blank (text input) ─────────
   function renderKazExercise(ex) {
+    if (ex.answers && !Array.isArray(ex.answers)) return renderSortGroups(ex);
     const MAX = 8;
     const hasWords  = ex.words  && ex.answers;
     const hasItems  = ex.items  && ex.answers;
@@ -1476,6 +1618,12 @@
   }
 
   function attachKazExerciseListeners() {
+    const ex = steps[stepIdx] && steps[stepIdx].ex;
+    if (ex && ex.answers && !Array.isArray(ex.answers)) {
+      attachSortGroupsListeners();
+      return;
+    }
+
     const body = document.getElementById('lesson-body');
     if (!body) return;
 
@@ -1541,7 +1689,8 @@
             section.kazExercises = (exData.exercises || [])
               .filter(ex =>
                 (ex.words && Array.isArray(ex.answers)) ||
-                (ex.items && Array.isArray(ex.answers))
+                (ex.items && Array.isArray(ex.answers)) ||
+                (ex.words && ex.answers && !Array.isArray(ex.answers) && typeof ex.answers === 'object')
               )
               .slice(0, 2);
           }
