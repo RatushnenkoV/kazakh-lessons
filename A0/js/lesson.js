@@ -1615,12 +1615,31 @@
     const hasItems  = ex.items  && ex.answers;
     let rowsHtml = '';
 
+    // For inline ___ items: extract only the suffix (what fills the blank)
+    function extractSuffix(pre, answer) {
+      const stem = pre.trimEnd();
+      return answer.toLowerCase().startsWith(stem.toLowerCase()) ? answer.slice(stem.length) : answer;
+    }
+    function suffixPool() {
+      if (!ex.items) return [];
+      return ex.answers.map((a, j) => {
+        const itm = ex.items[j] || '';
+        return itm.includes('___') ? extractSuffix(itm.split('___')[0], a) : a;
+      });
+    }
     function choiceOpts(correct) {
       const pool = ex.answers.filter(a => a.toLowerCase() !== correct.toLowerCase());
       return shuffle([correct, ...shuffle(pool.slice()).slice(0, 3)]);
     }
-    function choiceBtns(opts) {
-      return opts.map(o => `<button class="ke-choice-btn" data-val="${escHtml(o)}">${escHtml(o)}</button>`).join('');
+    function choiceOptsSuffix(suffix) {
+      const pool = suffixPool().filter(s => s.toLowerCase() !== suffix.toLowerCase());
+      return shuffle([suffix, ...shuffle(pool).slice(0, 3)]);
+    }
+    function choiceBtns(opts, dataVals) {
+      return opts.map((o, k) => {
+        const v = dataVals ? dataVals[k] : o;
+        return `<button class="ke-choice-btn" data-val="${escHtml(v)}">${escHtml(o)}</button>`;
+      }).join('');
     }
 
     if (hasWords) {
@@ -1641,29 +1660,35 @@
         }
       });
     } else if (hasItems) {
+      let choiceIdx = 0;
       ex.items.slice(0, MAX).forEach((item, i) => {
         if (item.includes('___')) {
           const [pre, post] = item.split('___');
-          if (i < CHOICE_COUNT) {
-            const opts = choiceOpts(ex.answers[i]);
+          const suffix = extractSuffix(pre, ex.answers[i]);
+          if (choiceIdx < CHOICE_COUNT) {
+            const opts = choiceOptsSuffix(suffix);
             rowsHtml += `<div class="ke-row ke-inline">
               <span class="ke-frag">${escHtml(pre)}</span>
-              <div class="ke-choices ke-choices-inline" data-answer="${escHtml(ex.answers[i])}" data-i="${i}">${choiceBtns(opts)}</div>
+              <div class="ke-choices ke-choices-inline" data-answer="${escHtml(suffix)}" data-i="${i}">${choiceBtns(opts)}</div>
               <span class="ke-frag">${escHtml(post || '')}</span>
             </div>`;
+            choiceIdx++;
           } else {
             rowsHtml += `<div class="ke-row ke-inline">
-              <span class="ke-frag">${escHtml(pre)}</span><input class="ke-input ke-input-sm" data-answer="${escHtml(ex.answers[i])}" data-i="${i}" autocomplete="off" spellcheck="false"><span class="ke-frag">${escHtml(post || '')}</span>
+              <span class="ke-frag">${escHtml(pre)}</span><input class="ke-input ke-input-sm" data-answer="${escHtml(suffix)}" data-i="${i}" autocomplete="off" spellcheck="false"><span class="ke-frag">${escHtml(post || '')}</span>
             </div>`;
           }
         } else {
-          if (i < CHOICE_COUNT) {
+          // Skip example rows (item without blank equals its answer)
+          if (item.trim().toLowerCase() === ex.answers[i].trim().toLowerCase()) return;
+          if (choiceIdx < CHOICE_COUNT) {
             const opts = choiceOpts(ex.answers[i]);
             rowsHtml += `<div class="ke-row">
               <span class="ke-prompt">${escHtml(item)}</span>
               <span class="ke-arrow">→</span>
               <div class="ke-choices" data-answer="${escHtml(ex.answers[i])}" data-i="${i}">${choiceBtns(opts)}</div>
             </div>`;
+            choiceIdx++;
           } else {
             rowsHtml += `<div class="ke-row">
               <span class="ke-prompt">${escHtml(item)}</span>
