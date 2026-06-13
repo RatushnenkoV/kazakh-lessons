@@ -1438,17 +1438,21 @@
     const groups = Object.keys(ex.answers);
 
     const wordToGroup = {};
+    const wordTranslation = {};
     groups.forEach((g, gi) => {
       ex.answers[g].forEach(entry => {
         const base = entry.split('(')[0].trim().toLowerCase();
         wordToGroup[base] = gi;
+        const m = entry.match(/\(([^)]+)\)/);
+        if (m) wordTranslation[base] = m[1];
       });
     });
 
     const items = shuffle(ex.words.slice(0, MAX_CARDS).map(w => ({
       word: w,
       groupIdx: wordToGroup[w.toLowerCase()] ?? -1,
-    })));
+      trans:    wordTranslation[w.toLowerCase()] || '',
+    }))).filter(it => it.groupIdx !== -1);
 
     sgState = { items, placed: new Set(), errors: 0, total: items.length };
 
@@ -1458,7 +1462,7 @@
       const { offsetY, rotate } = deckTransform(stackPos);
       return `<div class="sg-card" data-idx="${items.indexOf(item)}"
         style="z-index:${revIdx + 1};top:${offsetY}px;transform:rotate(${rotate}deg);touch-action:none">
-        <span class="sg-card-word">${escHtml(item.word)}</span>
+        <span class="sg-card-word">${escHtml(item.word)}</span>${item.trans ? `<span class="sg-card-trans">${escHtml(item.trans)}</span>` : ''}
       </div>`;
     }).join('');
 
@@ -1473,6 +1477,7 @@
         <div class="a0-skip-row"><button class="a0-skip-btn" id="btn-skip">Пропустить →</button></div>
         <div class="ke-icon">🗂️</div>
         <p class="ke-task">${escHtml(ex.task)}</p>
+        <p class="sg-hint">Перетащите каждое слово в нужную корзину</p>
         <div class="sg-deck-wrap"><div class="sg-deck" id="sg-deck">${deckCards}</div></div>
         <div class="sg-baskets">${basketsHtml}</div>
         <div id="sort-feedback" class="a0-practice-feedback"></div>
