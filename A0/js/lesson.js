@@ -1719,7 +1719,8 @@
           const exMap   = await mapResp.json();
           const entry   = exMap[sectionId];
           const exFile  = entry && (typeof entry === 'string' ? entry : entry.file);
-          const maxEx   = entry && typeof entry === 'object' && entry.max != null ? entry.max : 2;
+          const maxEx   = entry && typeof entry === 'object' && entry.max  != null ? entry.max  : 2;
+          const skipEx  = entry && typeof entry === 'object' && entry.skip != null ? entry.skip : 0;
           if (exFile) {
             const exResp = await fetch(`kaz-content/exercises/${exFile}`);
             const exData = await exResp.json();
@@ -1729,7 +1730,7 @@
                 (ex.items && Array.isArray(ex.answers)) ||
                 (ex.words && ex.answers && !Array.isArray(ex.answers) && typeof ex.answers === 'object')
               )
-              .slice(0, maxEx);
+              .slice(skipEx, skipEx + maxEx);
           }
         } catch {}
       }
