@@ -247,12 +247,15 @@
     const theoryIdx   = steps.filter((s, i) => i <= stepIdx && s.type === 'theory').length;
     const badge = stepsTotal > 1
       ? `<div class="a0-theory-badge">Шаг ${theoryIdx} из ${stepsTotal}</div>` : '';
+    const nextStep = steps[stepIdx + 1];
+    const nextLabel = (nextStep && (nextStep.type === 'practice' || nextStep.type === 'kaz-exercise'))
+      ? 'К практике →' : 'Продолжить →';
     return `
       <div class="a0-theory-wrap">
         ${badge}
         <h3 class="a0-theory-title">${stepData.title}</h3>
         <div class="a0-explanation kaz-content">${stepData.html}</div>
-        <button class="a0-nav-btn" id="btn-next">К практике →</button>
+        <button class="a0-nav-btn" id="btn-next">${nextLabel}</button>
       </div>`;
   }
 
