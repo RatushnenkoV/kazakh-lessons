@@ -1433,6 +1433,167 @@
   // ── Step: kaz-exercise — sort-groups (drag cards into group buckets) ──────
   let sgState = {};
 
+  // ── Step: table-word — one word at a time, forms revealed sequentially ──────
+  let twState = {};
+
+  // Standalone: generate wrong forms of same word via vowel-harmony / voicing swaps.
+  // pool = fallback array of candidate strings when pattern variants are exhausted.
+  function generateVariants(origWord, answer, pool) {
+    const wLen = origWord.length;
+    const stemInAns = answer.slice(0, wLen);
+    const stemChanged = stemInAns.toLowerCase() !== origWord.toLowerCase();
+    const sfx = answer.slice(wLen);
+    if (!sfx && !stemChanged) return null;
+
+    function av(s) {
+      return s.replace(/а/g, '\x01').replace(/е/g, 'а').replace(/\x01/g, 'е')
+              .replace(/ы/g, '\x02').replace(/і/g, 'ы').replace(/\x02/g, 'і');
+    }
+    const vm = {'қ':'ғ','ғ':'қ','к':'г','г':'к','п':'б','б':'п','т':'д','д':'т'};
+    function vc(s) { return s.replace(/^[қғкгпбтд]/i, c => vm[c] || c); }
+
+    const altVSfx  = av(sfx);
+    const altCSfx  = vc(sfx);
+    const altVCSfx = av(altCSfx);
+
+    const variants = new Set();
+    if (stemChanged) {
+      if (altVSfx !== sfx) variants.add(stemInAns + altVSfx);
+      variants.add(origWord + sfx);
+      if (altVSfx !== sfx) variants.add(origWord + altVSfx);
+    } else {
+      if (altVSfx !== sfx) variants.add(origWord + altVSfx);
+      if (altCSfx !== sfx) variants.add(origWord + altCSfx);
+      if (altVCSfx !== sfx && altVCSfx !== altVSfx && altVCSfx !== altCSfx)
+        variants.add(origWord + altVCSfx);
+    }
+
+    const result = shuffle([...variants]);
+    if (result.length < 3 && pool) {
+      const extra = shuffle(pool.filter(a =>
+        a.toLowerCase() !== answer.toLowerCase() &&
+        !result.some(r => r.toLowerCase() === a.toLowerCase())
+      ));
+      result.push(...extra.slice(0, 3 - result.length));
+    }
+    return result.length ? result.slice(0, 3) : null;
+  }
+
+  function renderTableWord(ex) {
+    const MAX_WORDS = 6;
+    const allWords = ex.words ? ex.words.filter(w => ex.answers[w]) : Object.keys(ex.answers);
+    const words = shuffle(allWords).slice(0, MAX_WORDS);
+    twState = { ex, words, wordIdx: 0, errors: 0 };
+    return `
+      <div class="ke-wrap">
+        <div class="a0-skip-row"><button class="a0-skip-btn" id="btn-skip">Пропустить →</button></div>
+        <div class="ke-icon">📝</div>
+        <p class="ke-task">${escHtml(ex.task)}</p>
+        <div id="tw-card">${renderTwCard()}</div>
+        <button class="a0-nav-btn" id="btn-next" style="display:none">Продолжить →</button>
+      </div>`;
+  }
+
+  function renderTwCard() {
+    const { words, wordIdx, ex } = twState;
+    const word = words[wordIdx];
+    const forms = ex.answers[word];
+    return `
+      <div class="tw-progress">Слово ${wordIdx + 1} из ${words.length}</div>
+      <div class="tw-word">${escHtml(word)}</div>
+      <div id="tw-forms">${twRenderForm(word, forms, 0)}</div>
+      <button class="a0-nav-btn tw-next-word" id="tw-next-word" style="display:none">
+        ${wordIdx + 1 < words.length ? 'Следующее слово →' : 'Готово!'}
+      </button>`;
+  }
+
+  function twRenderForm(word, forms, formIdx) {
+    const { ex } = twState;
+    const answer = forms[formIdx];
+    const otherForms = forms.filter(f => f.toLowerCase() !== answer.toLowerCase());
+    const allFlat = Object.values(ex.answers).flat();
+    const pool = allFlat.filter(f => f.toLowerCase() !== answer.toLowerCase());
+    let wrongs = [...otherForms];
+    (generateVariants(word, answer, pool) || []).forEach(g => {
+      if (!wrongs.some(r => r.toLowerCase() === g.toLowerCase())) wrongs.push(g);
+    });
+    shuffle(pool).forEach(p => {
+      if (wrongs.length >= 3) return;
+      if (!wrongs.some(r => r.toLowerCase() === p.toLowerCase())) wrongs.push(p);
+    });
+    const opts = shuffle([answer, ...wrongs.slice(0, 3)]);
+    const btns = opts.map(o => `<button class="ke-choice-btn" data-val="${escHtml(o)}">${escHtml(o)}</button>`).join('');
+    return `<div class="tw-form-row" data-form="${formIdx}" data-answer="${escHtml(answer)}">
+      <div class="ke-choices">${btns}</div>
+    </div>`;
+  }
+
+  function attachTableWordListeners() {
+    const body = document.getElementById('lesson-body');
+    if (!body) return;
+
+    function handleChoice(btn, formRow) {
+      if (formRow.dataset.checked) return;
+      formRow.dataset.checked = '1';
+      const correct = formRow.dataset.answer.toLowerCase();
+      if (btn.dataset.val.toLowerCase() !== correct) twState.errors++;
+      formRow.querySelectorAll('.ke-choice-btn').forEach(b => {
+        b.disabled = true;
+        if (b.dataset.val.toLowerCase() === correct) b.classList.add('ke-correct');
+        else if (b === btn) b.classList.add('ke-wrong');
+      });
+      revealNextOrShowButton(formRow);
+    }
+
+    function revealNextOrShowButton(formRow) {
+      const { ex, words, wordIdx } = twState;
+      const word = words[wordIdx];
+      const forms = ex.answers[word];
+      const formIdx = parseInt(formRow.dataset.form);
+      const formsEl = document.getElementById('tw-forms');
+
+      if (formIdx + 1 < forms.length && formsEl) {
+        const div = document.createElement('div');
+        div.innerHTML = twRenderForm(word, forms, formIdx + 1);
+        const nextRow = div.firstElementChild;
+        nextRow.style.cssText = 'opacity:0;transform:translateY(10px)';
+        formsEl.appendChild(nextRow);
+        requestAnimationFrame(() => {
+          nextRow.style.transition = 'opacity .25s, transform .25s';
+          nextRow.style.opacity = '1';
+          nextRow.style.transform = 'translateY(0)';
+        });
+      } else {
+        const nb = document.getElementById('tw-next-word');
+        if (nb) nb.style.display = '';
+      }
+    }
+
+    function advanceWord() {
+      twState.wordIdx++;
+      const cardEl = document.getElementById('tw-card');
+      if (!cardEl) return;
+      if (twState.wordIdx >= twState.words.length) {
+        cardEl.innerHTML = '';
+        const nextBtn = document.getElementById('btn-next');
+        if (nextBtn) nextBtn.style.display = '';
+      } else {
+        cardEl.innerHTML = renderTwCard();
+      }
+    }
+
+    body.addEventListener('click', e => {
+      const btn = e.target.closest('.ke-choice-btn');
+      if (btn) {
+        const formRow = btn.closest('.tw-form-row');
+        if (formRow) { handleChoice(btn, formRow); return; }
+      }
+      if (e.target.id === 'tw-next-word' || e.target.closest('#tw-next-word')) {
+        advanceWord();
+      }
+    });
+  }
+
   function renderSortGroups(ex) {
     const MAX_CARDS = 12;
     const groups = Object.keys(ex.answers);
@@ -1618,7 +1779,11 @@
 
   // ── Step: kaz-exercise — word-transform / fill-blank (text input) ─────────
   function renderKazExercise(ex) {
-    if (ex.answers && !Array.isArray(ex.answers)) return renderSortGroups(ex);
+    if (ex.answers && !Array.isArray(ex.answers)) {
+      const wSet = new Set(ex.words ? ex.words.map(w => w.toLowerCase()) : []);
+      if (Object.keys(ex.answers).some(k => wSet.has(k.toLowerCase()))) return renderTableWord(ex);
+      return renderSortGroups(ex);
+    }
     const MAX = 8;
     const CHOICE_COUNT = 3;
     const hasWords  = ex.words  && ex.answers;
@@ -1628,49 +1793,6 @@
     function lastWord(str) {
       const parts = str.trim().split(/\s+/);
       return parts[parts.length - 1] || str.trim();
-    }
-
-    // Universal: generate wrong forms of same word via vowel-harmony and voicing swaps
-    function generateVariants(origWord, answer) {
-      const wLen = origWord.length;
-      const stemInAns = answer.slice(0, wLen);
-      const stemChanged = stemInAns.toLowerCase() !== origWord.toLowerCase();
-      const sfx = answer.slice(wLen);
-      if (!sfx && !stemChanged) return null;
-
-      function av(s) {  // swap а↔е and ы↔і
-        return s.replace(/а/g, '\x01').replace(/е/g, 'а').replace(/\x01/g, 'е')
-                .replace(/ы/g, '\x02').replace(/і/g, 'ы').replace(/\x02/g, 'і');
-      }
-      const vm = {'қ':'ғ','ғ':'қ','к':'г','г':'к','п':'б','б':'п','т':'д','д':'т'};
-      function vc(s) { return s.replace(/^[қғкгпбтд]/i, c => vm[c] || c); } // swap first consonant
-
-      const altVSfx  = av(sfx);
-      const altCSfx  = vc(sfx);
-      const altVCSfx = av(altCSfx);
-
-      const variants = new Set();
-      if (stemChanged) {
-        // Consonant change in stem (e.g. п→б): offer all 4 combinations
-        if (altVSfx !== sfx) variants.add(stemInAns + altVSfx);
-        variants.add(origWord + sfx);
-        if (altVSfx !== sfx) variants.add(origWord + altVSfx);
-      } else {
-        if (altVSfx !== sfx) variants.add(origWord + altVSfx);
-        if (altCSfx !== sfx) variants.add(origWord + altCSfx);
-        if (altVCSfx !== sfx && altVCSfx !== altVSfx && altVCSfx !== altCSfx)
-          variants.add(origWord + altVCSfx);
-      }
-
-      const result = shuffle([...variants]);
-      if (result.length < 3) {
-        const pool = ex.answers.filter(a =>
-          a.toLowerCase() !== answer.toLowerCase() &&
-          !result.some(r => r.toLowerCase() === a.toLowerCase())
-        );
-        result.push(...shuffle(pool).slice(0, 3 - result.length));
-      }
-      return result.length ? result.slice(0, 3) : null;
     }
 
     function choiceOpts(correct) {
@@ -1685,7 +1807,7 @@
       ex.words.slice(0, MAX).forEach((w, i) => {
         if (i < CHOICE_COUNT) {
           const answer   = ex.answers[i];
-          const variants = generateVariants(w, answer);
+          const variants = generateVariants(w, answer, ex.answers);
           const opts     = variants ? shuffle([answer, ...variants]) : choiceOpts(answer);
           rowsHtml += `<div class="ke-row">
             <span class="ke-prompt">${escHtml(w)}</span>
@@ -1711,7 +1833,7 @@
           const answeredW   = lastWord(ex.answers[i]);
           const origW       = lastWord(pre);
           if (choiceIdx < CHOICE_COUNT) {
-            let wrongs = generateVariants(origW, answeredW) || [];
+            let wrongs = generateVariants(origW, answeredW, ex.answers) || [];
             // Fill remaining slots from answered-word pool
             const extra = shuffle(answeredWordPool.filter(
               w => w.toLowerCase() !== answeredW.toLowerCase() &&
@@ -1768,6 +1890,8 @@
   function attachKazExerciseListeners() {
     const ex = steps[stepIdx] && steps[stepIdx].ex;
     if (ex && ex.answers && !Array.isArray(ex.answers)) {
+      const wSet = new Set(ex.words ? ex.words.map(w => w.toLowerCase()) : []);
+      if (Object.keys(ex.answers).some(k => wSet.has(k.toLowerCase()))) { attachTableWordListeners(); return; }
       attachSortGroupsListeners();
       return;
     }
@@ -1879,11 +2003,7 @@
               .filter(ex => {
                 if (ex.words && Array.isArray(ex.answers)) return true;
                 if (ex.items && Array.isArray(ex.answers)) return true;
-                if (ex.words && ex.answers && !Array.isArray(ex.answers) && typeof ex.answers === 'object') {
-                  // Exclude table exercises where answer keys ARE the words themselves
-                  const wSet = new Set(ex.words.map(w => w.toLowerCase()));
-                  return !Object.keys(ex.answers).some(k => wSet.has(k.toLowerCase()));
-                }
+                if (ex.words && ex.answers && !Array.isArray(ex.answers) && typeof ex.answers === 'object') return true;
                 return false;
               })
               .slice(skipEx, skipEx + maxEx);
