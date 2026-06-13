@@ -1437,7 +1437,6 @@
     const MAX_CARDS = 12;
     const groups = Object.keys(ex.answers);
 
-    // Build word (lowercase, no translation) → groupIdx lookup
     const wordToGroup = {};
     groups.forEach((g, gi) => {
       ex.answers[g].forEach(entry => {
@@ -1453,16 +1452,20 @@
 
     sgState = { items, placed: new Set(), errors: 0, total: items.length };
 
-    const poolHtml = items.map((item, i) =>
-      `<div class="a0-pool-card" data-idx="${i}" style="touch-action:none">
-        <div class="a0-sort-word">${escHtml(item.word)}</div>
-      </div>`
-    ).join('');
+    // Deck: cards absolutely positioned, top card last in DOM (highest z-index)
+    const deckCards = [...items].reverse().map((item, revIdx) => {
+      const stackPos = items.length - 1 - revIdx; // 0 = top card
+      const { offsetY, rotate } = deckTransform(stackPos);
+      return `<div class="sg-card" data-idx="${items.indexOf(item)}"
+        style="z-index:${revIdx + 1};top:${offsetY}px;transform:rotate(${rotate}deg);touch-action:none">
+        <span class="sg-card-word">${escHtml(item.word)}</span>
+      </div>`;
+    }).join('');
 
     const basketsHtml = groups.map((g, gi) =>
-      `<div class="a0-basket" id="basket-${gi}" data-choice="${gi}">
-        <div class="a0-basket-label">${escHtml(g)}</div>
-        <div class="a0-basket-chips" id="chips-${gi}"></div>
+      `<div class="sg-basket" id="basket-${gi}" data-choice="${gi}">
+        <div class="sg-basket-label">${escHtml(g)}</div>
+        <div class="sg-pile" id="chips-${gi}"></div>
       </div>`
     ).join('');
 
@@ -1471,23 +1474,48 @@
         <div class="a0-skip-row"><button class="a0-skip-btn" id="btn-skip">Пропустить →</button></div>
         <div class="ke-icon">🗂️</div>
         <p class="ke-task">${escHtml(ex.task)}</p>
-        <div class="a0-sort-pool" id="sort-pool">${poolHtml}</div>
-        <div class="a0-baskets">${basketsHtml}</div>
+        <div class="sg-deck-wrap"><div class="sg-deck" id="sg-deck">${deckCards}</div></div>
+        <div class="sg-baskets">${basketsHtml}</div>
         <div id="sort-feedback" class="a0-practice-feedback"></div>
         <button class="a0-nav-btn" id="btn-next" style="display:none">Продолжить →</button>
       </div>`;
   }
 
+  function deckTransform(stackPos) {
+    // stackPos 0 = top visible card, increases going back into deck
+    const offsetY = Math.min(stackPos, 4) * 4;          // peek: max 16px offset
+    const rotDir  = stackPos % 2 === 0 ? 1 : -1;
+    const rotate  = stackPos === 0 ? 0 : rotDir * Math.min(stackPos, 3) * 0.8;
+    return { offsetY, rotate };
+  }
+
+  function updateDeckStack() {
+    const deck = document.getElementById('sg-deck');
+    if (!deck) return;
+    const cards = Array.from(deck.querySelectorAll('.sg-card'));
+    // Sort by z-index descending → index 0 = top card
+    cards.sort((a, b) => parseInt(b.style.zIndex) - parseInt(a.style.zIndex));
+    cards.forEach((card, stackPos) => {
+      const { offsetY, rotate } = deckTransform(stackPos);
+      card.style.transition = 'top .25s ease, transform .25s ease';
+      card.style.top = `${offsetY}px`;
+      card.style.transform = `rotate(${rotate}deg)`;
+    });
+  }
+
   function attachSortGroupsListeners() {
     const body = document.getElementById('lesson-body');
     if (!body) return;
-    body.querySelectorAll('.a0-pool-card').forEach((card, i) => {
+
+    body.querySelectorAll('.sg-card').forEach(card => {
       let clone = null, startX = 0, startY = 0, hasMoved = false;
 
       card.addEventListener('pointerdown', e => {
         startX = e.clientX; startY = e.clientY;
         hasMoved = false;
         card.setPointerCapture(e.pointerId);
+        card.style.transition = 'none';
+        card.style.zIndex = 9998; // lift to front while dragging
       });
 
       card.addEventListener('pointermove', e => {
@@ -1495,22 +1523,22 @@
         if (!hasMoved && Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
         if (!hasMoved) {
           hasMoved = true;
-          card.style.opacity = '.35';
+          card.style.opacity = '.3';
           const r = card.getBoundingClientRect();
           clone = card.cloneNode(true);
           Object.assign(clone.style, {
             position: 'fixed', left: r.left + 'px', top: r.top + 'px',
             width: r.width + 'px', margin: '0', pointerEvents: 'none',
-            zIndex: '9999', opacity: '0.92', transition: 'none',
-            boxShadow: '0 10px 32px rgba(0,0,0,.22)',
+            zIndex: '9999', opacity: '0.95', transition: 'none',
+            boxShadow: '0 12px 36px rgba(0,0,0,.25)',
           });
           document.body.appendChild(clone);
         }
-        const rot = Math.max(-14, Math.min(14, dx * 0.04));
-        clone.style.transform = `translate(${dx}px,${dy}px) rotate(${rot}deg) scale(1.06)`;
-        document.querySelectorAll('.a0-basket').forEach(b => {
+        const rot = Math.max(-18, Math.min(18, dx * 0.05));
+        clone.style.transform = `translate(${dx}px,${dy}px) rotate(${rot}deg) scale(1.07)`;
+        document.querySelectorAll('.sg-basket').forEach(b => {
           const r2 = b.getBoundingClientRect();
-          b.classList.toggle('drag-over',
+          b.classList.toggle('sg-drag-over',
             e.clientX > r2.left && e.clientX < r2.right &&
             e.clientY > r2.top  && e.clientY < r2.bottom);
         });
@@ -1519,17 +1547,18 @@
       function settle(e) {
         if (clone) { clone.remove(); clone = null; }
         card.style.opacity = '1';
-        if (!hasMoved) return;
+        if (!hasMoved) { updateDeckStack(); return; }
         hasMoved = false;
 
         let chosen = null;
-        document.querySelectorAll('.a0-basket').forEach(b => {
-          b.classList.remove('drag-over');
+        document.querySelectorAll('.sg-basket').forEach(b => {
+          b.classList.remove('sg-drag-over');
           const r = b.getBoundingClientRect();
           if (e.clientX > r.left && e.clientX < r.right &&
               e.clientY > r.top  && e.clientY < r.bottom) chosen = b;
         });
-        if (!chosen) return;
+
+        if (!chosen) { updateDeckStack(); return; }
 
         const item = sgState.items[parseInt(card.dataset.idx)];
         const correct = parseInt(chosen.dataset.choice) === item.groupIdx;
@@ -1537,19 +1566,25 @@
 
         if (correct) {
           sgState.placed.add(parseInt(card.dataset.idx));
-          const chipsEl = document.getElementById(`chips-${item.groupIdx}`);
-          if (chipsEl) {
+          // Add chip to basket pile with slight random rotation
+          const pileEl = document.getElementById(`chips-${item.groupIdx}`);
+          if (pileEl) {
             const chip = document.createElement('div');
-            chip.className = 'a0-basket-chip';
+            chip.className = 'sg-chip';
+            const rot = (Math.random() - 0.5) * 10;
+            chip.style.setProperty('--rot', `${rot}deg`);
             chip.textContent = item.word;
-            chipsEl.appendChild(chip);
+            pileEl.appendChild(chip);
           }
-          card.style.transition = 'transform .18s ease, opacity .22s ease';
+          // Remove card from deck
+          card.style.transition = 'transform .2s ease, opacity .2s ease';
           card.style.opacity = '0';
-          card.style.transform = 'scale(0.4)';
-          setTimeout(() => card.remove(), 250);
-          chosen.classList.add('basket-success');
-          setTimeout(() => chosen.classList.remove('basket-success'), 500);
+          card.style.transform += ' scale(0.5)';
+          setTimeout(() => { card.remove(); updateDeckStack(); }, 220);
+
+          chosen.classList.add('sg-basket-ok');
+          setTimeout(() => chosen.classList.remove('sg-basket-ok'), 500);
+
           if (sgState.placed.size === sgState.total) {
             if (fb) { fb.textContent = sgState.errors === 0 ? '🎉 Всё правильно!' : '✓ Разложено!'; fb.className = 'a0-practice-feedback correct'; }
             const nx = document.getElementById('btn-next');
@@ -1561,8 +1596,8 @@
           sgState.errors++;
           card.classList.add('shake');
           chosen.classList.add('basket-error');
-          setTimeout(() => { card.classList.remove('shake'); chosen.classList.remove('basket-error'); }, 500);
-          if (fb) { fb.textContent = `✗ Не сюда`; fb.className = 'a0-practice-feedback wrong'; setTimeout(() => { if (fb.textContent === '✗ Не сюда') fb.textContent = ''; }, 900); }
+          setTimeout(() => { card.classList.remove('shake'); chosen.classList.remove('basket-error'); updateDeckStack(); }, 500);
+          if (fb) { fb.textContent = '✗ Не сюда'; fb.className = 'a0-practice-feedback wrong'; setTimeout(() => { if (fb.textContent === '✗ Не сюда') fb.textContent = ''; }, 900); }
         }
       }
 

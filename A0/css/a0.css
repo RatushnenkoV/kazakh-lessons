@@ -1404,6 +1404,104 @@
 }
 .a0-skip-btn:hover { opacity: 1; color: var(--accent); }
 
+/* ── sort-groups: deck + baskets ────────────────────────────────────────── */
+.sg-deck-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+.sg-deck {
+  position: relative;
+  width: 200px;
+  height: 80px; /* top card height + peek space */
+}
+.sg-card {
+  position: absolute;
+  left: 0; right: 0;
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  user-select: none;
+  will-change: transform;
+}
+.sg-card:active { cursor: grabbing; }
+.sg-card-word {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.sg-baskets {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.sg-basket {
+  flex: 1;
+  min-width: 130px;
+  max-width: 220px;
+  background: var(--bg-page);
+  border: 2px dashed var(--border);
+  border-radius: var(--r-md);
+  padding: 14px 12px 12px;
+  transition: border-color .15s, background .15s;
+  min-height: 100px;
+}
+.sg-basket.sg-drag-over {
+  border-color: var(--accent);
+  background: var(--secondary-pale, #eef4fb);
+}
+.sg-basket.sg-basket-ok {
+  border-color: var(--success);
+  background: var(--success-pale);
+  transition: none;
+}
+.sg-basket.basket-error {
+  border-color: var(--error);
+  background: var(--error-pale);
+  transition: none;
+}
+.sg-basket-label {
+  font-size: .78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+/* Pile of chips in basket */
+.sg-pile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+.sg-chip {
+  position: relative;
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--r-sm);
+  padding: 5px 10px;
+  font-size: .85rem;
+  font-weight: 700;
+  margin-top: -4px;
+  transform: rotate(var(--rot, 0deg));
+  box-shadow: 0 2px 6px rgba(0,0,0,.15);
+  width: max-content;
+  max-width: 100%;
+}
+.sg-chip:first-child { margin-top: 0; }
+
 /* ── kaz-exercise step ──────────────────────────────────────────────────── */
 .ke-wrap {
   max-width: 640px;
