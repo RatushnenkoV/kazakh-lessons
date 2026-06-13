@@ -1464,8 +1464,7 @@
 
     const basketsHtml = groups.map((g, gi) =>
       `<div class="sg-basket" id="basket-${gi}" data-choice="${gi}">
-        <div class="sg-basket-label">${escHtml(g)}</div>
-        <div class="sg-pile" id="chips-${gi}"></div>
+        <div class="sg-basket-label">${escHtml(g)}<span class="sg-count">0</span></div>
       </div>`
     ).join('');
 
@@ -1566,16 +1565,24 @@
 
         if (correct) {
           sgState.placed.add(parseInt(card.dataset.idx));
-          // Add chip to basket pile with slight random rotation
-          const pileEl = document.getElementById(`chips-${item.groupIdx}`);
-          if (pileEl) {
-            const chip = document.createElement('div');
-            chip.className = 'sg-chip';
-            const rot = (Math.random() - 0.5) * 10;
-            chip.style.setProperty('--rot', `${rot}deg`);
-            chip.textContent = item.word;
-            pileEl.appendChild(chip);
+
+          // Increment count badge
+          const countEl = chosen.querySelector('.sg-count');
+          if (countEl) {
+            countEl.textContent = parseInt(countEl.textContent || '0') + 1;
+            countEl.classList.remove('bump');
+            void countEl.offsetWidth;
+            countEl.classList.add('bump');
+            setTimeout(() => countEl.classList.remove('bump'), 200);
           }
+
+          // Floating "Правильно!" pop inside basket
+          const pop = document.createElement('div');
+          pop.className = 'sg-correct-pop';
+          pop.textContent = '✓ Правильно!';
+          chosen.appendChild(pop);
+          setTimeout(() => pop.remove(), 700);
+
           // Remove card from deck
           card.style.transition = 'transform .2s ease, opacity .2s ease';
           card.style.opacity = '0';
@@ -1589,8 +1596,6 @@
             if (fb) { fb.textContent = sgState.errors === 0 ? '🎉 Всё правильно!' : '✓ Разложено!'; fb.className = 'a0-practice-feedback correct'; }
             const nx = document.getElementById('btn-next');
             if (nx) nx.style.display = '';
-          } else {
-            if (fb) { fb.textContent = '✓ Верно!'; fb.className = 'a0-practice-feedback correct'; setTimeout(() => { if (fb.textContent === '✓ Верно!') fb.textContent = ''; }, 700); }
           }
         } else {
           sgState.errors++;

@@ -1446,14 +1446,16 @@
 }
 .sg-basket {
   flex: 1;
-  min-width: 130px;
-  max-width: 220px;
+  min-width: 110px;
+  max-width: 180px;
   background: var(--bg-page);
   border: 2px dashed var(--border);
   border-radius: var(--r-md);
   padding: 14px 12px 12px;
   transition: border-color .15s, background .15s;
-  min-height: 100px;
+  min-height: 56px;
+  position: relative;
+  overflow: visible;
 }
 .sg-basket.sg-drag-over {
   border-color: var(--accent);
@@ -1479,17 +1481,54 @@
   text-align: center;
 }
 
-/* Pile of chips in basket */
-.sg-pile {
-  display: flex;
-  flex-direction: column;
+/* Count badge in basket */
+.sg-count {
+  display: inline-flex;
   align-items: center;
-  gap: 0;
-}
-.sg-chip {
-  position: relative;
+  justify-content: center;
   background: var(--accent);
   color: #fff;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 800;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  margin-left: 5px;
+  vertical-align: middle;
+  transition: transform .15s;
+}
+.sg-count.bump { transform: scale(1.4); }
+
+/* Floating "Правильно!" pop on correct drop */
+.sg-correct-pop {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--success);
+  color: #fff;
+  border-radius: var(--r-sm);
+  padding: 4px 10px;
+  font-size: .82rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: sgPop .7s ease forwards;
+  z-index: 10;
+}
+@keyframes sgPop {
+  0%   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  70%  { opacity: 1; transform: translate(-50%, -80%) scale(1.05); }
+  100% { opacity: 0; transform: translate(-50%, -100%) scale(.9); }
+}
+
+/* Legacy pile/chip — kept empty to avoid errors */
+.sg-pile { display: none; }
+.sg-chip { display: none; }
+.sg-chip:first-child { margin-top: 0; }
+
+/* ── kaz-exercise step ──────────────────────────────────────────────────── */
   border-radius: var(--r-sm);
   padding: 5px 10px;
   font-size: .85rem;
