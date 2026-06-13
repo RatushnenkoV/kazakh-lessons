@@ -1627,6 +1627,20 @@
         return itm.includes('___') ? extractSuffix(itm.split('___')[0], a) : a;
       });
     }
+    // For ы/і-suffix exercises: generate wrong forms of the same word
+    function generateVariants(word, answer) {
+      const sfx = answer.slice(-1);
+      if (sfx !== 'ы' && sfx !== 'і') return null;
+      const altSfx    = sfx === 'ы' ? 'і' : 'ы';
+      const changedStem = answer.slice(0, -1);
+      const origStem    = word;
+      const stemChanged = changedStem.toLowerCase() !== origStem.toLowerCase();
+      if (stemChanged) {
+        return shuffle([changedStem + altSfx, origStem + sfx, origStem + altSfx]);
+      }
+      const pool = ex.answers.filter(a => a.toLowerCase() !== answer.toLowerCase());
+      return [origStem + altSfx, ...shuffle(pool).slice(0, 2)];
+    }
     function choiceOpts(correct) {
       const pool = ex.answers.filter(a => a.toLowerCase() !== correct.toLowerCase());
       return shuffle([correct, ...shuffle(pool.slice()).slice(0, 3)]);
@@ -1645,11 +1659,13 @@
     if (hasWords) {
       ex.words.slice(0, MAX).forEach((w, i) => {
         if (i < CHOICE_COUNT) {
-          const opts = choiceOpts(ex.answers[i]);
+          const answer   = ex.answers[i];
+          const variants = generateVariants(w, answer);
+          const opts     = variants ? shuffle([answer, ...variants]) : choiceOpts(answer);
           rowsHtml += `<div class="ke-row">
             <span class="ke-prompt">${escHtml(w)}</span>
             <span class="ke-arrow">→</span>
-            <div class="ke-choices" data-answer="${escHtml(ex.answers[i])}" data-i="${i}">${choiceBtns(opts)}</div>
+            <div class="ke-choices" data-answer="${escHtml(answer)}" data-i="${i}">${choiceBtns(opts)}</div>
           </div>`;
         } else {
           rowsHtml += `<div class="ke-row">
