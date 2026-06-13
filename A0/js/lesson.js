@@ -1610,31 +1610,67 @@
   function renderKazExercise(ex) {
     if (ex.answers && !Array.isArray(ex.answers)) return renderSortGroups(ex);
     const MAX = 8;
+    const CHOICE_COUNT = 3;
     const hasWords  = ex.words  && ex.answers;
     const hasItems  = ex.items  && ex.answers;
     let rowsHtml = '';
 
+    function choiceOpts(correct) {
+      const pool = ex.answers.filter(a => a.toLowerCase() !== correct.toLowerCase());
+      return shuffle([correct, ...shuffle(pool.slice()).slice(0, 3)]);
+    }
+    function choiceBtns(opts) {
+      return opts.map(o => `<button class="ke-choice-btn" data-val="${escHtml(o)}">${escHtml(o)}</button>`).join('');
+    }
+
     if (hasWords) {
       ex.words.slice(0, MAX).forEach((w, i) => {
-        rowsHtml += `<div class="ke-row">
-          <span class="ke-prompt">${escHtml(w)}</span>
-          <span class="ke-arrow">→</span>
-          <input class="ke-input" data-answer="${escHtml(ex.answers[i])}" data-i="${i}" autocomplete="off" spellcheck="false">
-        </div>`;
+        if (i < CHOICE_COUNT) {
+          const opts = choiceOpts(ex.answers[i]);
+          rowsHtml += `<div class="ke-row">
+            <span class="ke-prompt">${escHtml(w)}</span>
+            <span class="ke-arrow">→</span>
+            <div class="ke-choices" data-answer="${escHtml(ex.answers[i])}" data-i="${i}">${choiceBtns(opts)}</div>
+          </div>`;
+        } else {
+          rowsHtml += `<div class="ke-row">
+            <span class="ke-prompt">${escHtml(w)}</span>
+            <span class="ke-arrow">→</span>
+            <input class="ke-input" data-answer="${escHtml(ex.answers[i])}" data-i="${i}" autocomplete="off" spellcheck="false">
+          </div>`;
+        }
       });
     } else if (hasItems) {
       ex.items.slice(0, MAX).forEach((item, i) => {
         if (item.includes('___')) {
           const [pre, post] = item.split('___');
-          rowsHtml += `<div class="ke-row ke-inline">
-            <span class="ke-frag">${escHtml(pre)}</span><input class="ke-input ke-input-sm" data-answer="${escHtml(ex.answers[i])}" data-i="${i}" autocomplete="off" spellcheck="false"><span class="ke-frag">${escHtml(post || '')}</span>
-          </div>`;
+          if (i < CHOICE_COUNT) {
+            const opts = choiceOpts(ex.answers[i]);
+            rowsHtml += `<div class="ke-row ke-inline">
+              <span class="ke-frag">${escHtml(pre)}</span>
+              <div class="ke-choices ke-choices-inline" data-answer="${escHtml(ex.answers[i])}" data-i="${i}">${choiceBtns(opts)}</div>
+              <span class="ke-frag">${escHtml(post || '')}</span>
+            </div>`;
+          } else {
+            rowsHtml += `<div class="ke-row ke-inline">
+              <span class="ke-frag">${escHtml(pre)}</span><input class="ke-input ke-input-sm" data-answer="${escHtml(ex.answers[i])}" data-i="${i}" autocomplete="off" spellcheck="false"><span class="ke-frag">${escHtml(post || '')}</span>
+            </div>`;
+          }
         } else {
-          rowsHtml += `<div class="ke-row">
-            <span class="ke-prompt">${escHtml(item)}</span>
-            <span class="ke-arrow">→</span>
-            <input class="ke-input" data-answer="${escHtml(ex.answers[i])}" data-i="${i}" autocomplete="off" spellcheck="false">
-          </div>`;
+          if (i < CHOICE_COUNT) {
+            const opts = choiceOpts(ex.answers[i]);
+            rowsHtml += `<div class="ke-row">
+              <span class="ke-prompt">${escHtml(item)}</span>
+              <span class="ke-arrow">→</span>
+              <div class="ke-choices" data-answer="${escHtml(ex.answers[i])}" data-i="${i}">${choiceBtns(opts)}</div>
+            </div>`;
+          } else {
+            rowsHtml += `<div class="ke-row">
+              <span class="ke-prompt">${escHtml(item)}</span>
+              <span class="ke-arrow">→</span>
+              <input class="ke-input" data-answer="${escHtml(ex.answers[i])}" data-i="${i}" autocomplete="off" spellcheck="false">
+            </div>`;
+          }
         }
       });
     }
@@ -1671,6 +1707,18 @@
       });
     });
 
+    // Choice button selection
+    const choiceGroups = body.querySelectorAll('.ke-choices');
+    choiceGroups.forEach(group => {
+      group.querySelectorAll('.ke-choice-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (group.dataset.checked) return;
+          group.querySelectorAll('.ke-choice-btn').forEach(b => b.classList.remove('ke-choice-selected'));
+          btn.classList.add('ke-choice-selected');
+        });
+      });
+    });
+
     const checkBtn = document.getElementById('ke-check');
     if (!checkBtn) return;
     checkBtn.addEventListener('click', () => {
@@ -1678,7 +1726,6 @@
         const correct = inp.value.trim().toLowerCase() === inp.dataset.answer.toLowerCase();
         inp.classList.toggle('ke-correct', correct);
         inp.classList.toggle('ke-wrong',   !correct);
-        // show/hide reveal label
         let rev = inp.nextElementSibling;
         if (correct) {
           if (rev && rev.classList.contains('ke-reveal')) rev.remove();
@@ -1690,6 +1737,17 @@
           }
           rev.textContent = inp.dataset.answer;
         }
+      });
+      choiceGroups.forEach(group => {
+        group.dataset.checked = '1';
+        const correct = group.dataset.answer.toLowerCase();
+        group.querySelectorAll('.ke-choice-btn').forEach(btn => {
+          btn.disabled = true;
+          const isCorrect = btn.dataset.val.toLowerCase() === correct;
+          const isSelected = btn.classList.contains('ke-choice-selected');
+          if (isCorrect) btn.classList.add('ke-correct');
+          else if (isSelected) btn.classList.add('ke-wrong');
+        });
       });
       checkBtn.style.display = 'none';
       const nextBtn = document.getElementById('btn-next');
