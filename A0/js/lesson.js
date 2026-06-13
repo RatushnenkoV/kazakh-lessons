@@ -1876,11 +1876,16 @@
             const exResp = await fetch(`kaz-content/exercises/${exFile}`);
             const exData = await exResp.json();
             section.kazExercises = (exData.exercises || [])
-              .filter(ex =>
-                (ex.words && Array.isArray(ex.answers)) ||
-                (ex.items && Array.isArray(ex.answers)) ||
-                (ex.words && ex.answers && !Array.isArray(ex.answers) && typeof ex.answers === 'object')
-              )
+              .filter(ex => {
+                if (ex.words && Array.isArray(ex.answers)) return true;
+                if (ex.items && Array.isArray(ex.answers)) return true;
+                if (ex.words && ex.answers && !Array.isArray(ex.answers) && typeof ex.answers === 'object') {
+                  // Exclude table exercises where answer keys ARE the words themselves
+                  const wSet = new Set(ex.words.map(w => w.toLowerCase()));
+                  return !Object.keys(ex.answers).some(k => wSet.has(k.toLowerCase()));
+                }
+                return false;
+              })
               .slice(skipEx, skipEx + maxEx);
           }
         } catch {}
