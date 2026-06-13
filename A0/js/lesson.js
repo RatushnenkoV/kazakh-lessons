@@ -1620,38 +1620,47 @@
       return parts[parts.length - 1] || str.trim();
     }
 
-    // Wrong forms for single-char ы/і suffix (word-transform exercises)
-    function generateVariants(word, answer) {
-      const sfx = answer.slice(-1);
-      if (sfx !== 'ы' && sfx !== 'і') return null;
-      const altSfx     = sfx === 'ы' ? 'і' : 'ы';
-      const changedStem = answer.slice(0, -1);
-      const stemChanged = changedStem.toLowerCase() !== word.toLowerCase();
+    // Universal: generate wrong forms of same word via vowel-harmony and voicing swaps
+    function generateVariants(origWord, answer) {
+      const wLen = origWord.length;
+      const stemInAns = answer.slice(0, wLen);
+      const stemChanged = stemInAns.toLowerCase() !== origWord.toLowerCase();
+      const sfx = answer.slice(wLen);
+      if (!sfx && !stemChanged) return null;
+
+      function av(s) {  // swap а↔е and ы↔і
+        return s.replace(/а/g, '\x01').replace(/е/g, 'а').replace(/\x01/g, 'е')
+                .replace(/ы/g, '\x02').replace(/і/g, 'ы').replace(/\x02/g, 'і');
+      }
+      const vm = {'қ':'ғ','ғ':'қ','к':'г','г':'к','п':'б','б':'п','т':'д','д':'т'};
+      function vc(s) { return s.replace(/^[қғкгпбтд]/i, c => vm[c] || c); } // swap first consonant
+
+      const altVSfx  = av(sfx);
+      const altCSfx  = vc(sfx);
+      const altVCSfx = av(altCSfx);
+
+      const variants = new Set();
       if (stemChanged) {
-        return shuffle([changedStem + altSfx, word + sfx, word + altSfx]);
+        // Consonant change in stem (e.g. п→б): offer all 4 combinations
+        if (altVSfx !== sfx) variants.add(stemInAns + altVSfx);
+        variants.add(origWord + sfx);
+        if (altVSfx !== sfx) variants.add(origWord + altVSfx);
+      } else {
+        if (altVSfx !== sfx) variants.add(origWord + altVSfx);
+        if (altCSfx !== sfx) variants.add(origWord + altCSfx);
+        if (altVCSfx !== sfx && altVCSfx !== altVSfx && altVCSfx !== altCSfx)
+          variants.add(origWord + altVCSfx);
       }
-      const pool = ex.answers.filter(a => a.toLowerCase() !== answer.toLowerCase());
-      return [word + altSfx, ...shuffle(pool).slice(0, 2)];
-    }
 
-    // Wrong forms for inline ___ items: swap ы↔і + optionally restore original consonant
-    function genWordVariants(origWord, answeredWord) {
-      const altVowel = w => w.replace(/ы/g, '\x01').replace(/і/g, 'ы').replace(/\x01/g, 'і');
-      const results = new Set();
-
-      const v1 = altVowel(answeredWord);
-      if (v1.toLowerCase() !== answeredWord.toLowerCase()) results.add(v1);
-
-      // Check consonant change: origWord differs from the start of answeredWord
-      if (origWord && answeredWord.slice(0, origWord.length).toLowerCase() !== origWord.toLowerCase()) {
-        const sfx = answeredWord.slice(origWord.length);
-        const noChange     = origWord + sfx;
-        const noChangeAlt  = altVowel(noChange);
-        if (noChange.toLowerCase() !== answeredWord.toLowerCase())    results.add(noChange);
-        if (noChangeAlt.toLowerCase() !== answeredWord.toLowerCase()  &&
-            noChangeAlt.toLowerCase() !== noChange.toLowerCase())      results.add(noChangeAlt);
+      const result = shuffle([...variants]);
+      if (result.length < 3) {
+        const pool = ex.answers.filter(a =>
+          a.toLowerCase() !== answer.toLowerCase() &&
+          !result.some(r => r.toLowerCase() === a.toLowerCase())
+        );
+        result.push(...shuffle(pool).slice(0, 3 - result.length));
       }
-      return [...results].slice(0, 3);
+      return result.length ? result.slice(0, 3) : null;
     }
 
     function choiceOpts(correct) {
@@ -1692,7 +1701,7 @@
           const answeredW   = lastWord(ex.answers[i]);
           const origW       = lastWord(pre);
           if (choiceIdx < CHOICE_COUNT) {
-            let wrongs = genWordVariants(origW, answeredW);
+            let wrongs = generateVariants(origW, answeredW) || [];
             // Fill remaining slots from answered-word pool
             const extra = shuffle(answeredWordPool.filter(
               w => w.toLowerCase() !== answeredW.toLowerCase() &&
@@ -1765,14 +1774,29 @@
       });
     });
 
-    // Choice button selection
+    // Choice button: immediate feedback on click
     const choiceGroups = body.querySelectorAll('.ke-choices');
+    function maybeShowNext() {
+      if ([...choiceGroups].every(g => g.dataset.checked) && inputs.length === 0) {
+        checkBtn.style.display = 'none';
+        const nb = document.getElementById('btn-next');
+        if (nb) nb.style.display = '';
+      }
+    }
     choiceGroups.forEach(group => {
       group.querySelectorAll('.ke-choice-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           if (group.dataset.checked) return;
-          group.querySelectorAll('.ke-choice-btn').forEach(b => b.classList.remove('ke-choice-selected'));
-          btn.classList.add('ke-choice-selected');
+          group.dataset.checked = '1';
+          const correct = group.dataset.answer.toLowerCase();
+          group.querySelectorAll('.ke-choice-btn').forEach(b => {
+            b.disabled = true;
+            const isCorrect = b.dataset.val.toLowerCase() === correct;
+            const isSelected = b === btn;
+            if (isCorrect) b.classList.add('ke-correct');
+            else if (isSelected) b.classList.add('ke-wrong');
+          });
+          maybeShowNext();
         });
       });
     });
@@ -1797,6 +1821,7 @@
         }
       });
       choiceGroups.forEach(group => {
+        if (group.dataset.checked) return; // already validated on click
         group.dataset.checked = '1';
         const correct = group.dataset.answer.toLowerCase();
         group.querySelectorAll('.ke-choice-btn').forEach(btn => {
