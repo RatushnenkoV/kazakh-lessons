@@ -1615,45 +1615,51 @@
     const hasItems  = ex.items  && ex.answers;
     let rowsHtml = '';
 
-    // For inline ___ items: extract only the suffix (what fills the blank)
-    function extractSuffix(pre, answer) {
-      const stem = pre.trimEnd();
-      return answer.toLowerCase().startsWith(stem.toLowerCase()) ? answer.slice(stem.length) : answer;
+    function lastWord(str) {
+      const parts = str.trim().split(/\s+/);
+      return parts[parts.length - 1] || str.trim();
     }
-    function suffixPool() {
-      if (!ex.items) return [];
-      return ex.answers.map((a, j) => {
-        const itm = ex.items[j] || '';
-        return itm.includes('___') ? extractSuffix(itm.split('___')[0], a) : a;
-      });
-    }
-    // For ы/і-suffix exercises: generate wrong forms of the same word
+
+    // Wrong forms for single-char ы/і suffix (word-transform exercises)
     function generateVariants(word, answer) {
       const sfx = answer.slice(-1);
       if (sfx !== 'ы' && sfx !== 'і') return null;
-      const altSfx    = sfx === 'ы' ? 'і' : 'ы';
+      const altSfx     = sfx === 'ы' ? 'і' : 'ы';
       const changedStem = answer.slice(0, -1);
-      const origStem    = word;
-      const stemChanged = changedStem.toLowerCase() !== origStem.toLowerCase();
+      const stemChanged = changedStem.toLowerCase() !== word.toLowerCase();
       if (stemChanged) {
-        return shuffle([changedStem + altSfx, origStem + sfx, origStem + altSfx]);
+        return shuffle([changedStem + altSfx, word + sfx, word + altSfx]);
       }
       const pool = ex.answers.filter(a => a.toLowerCase() !== answer.toLowerCase());
-      return [origStem + altSfx, ...shuffle(pool).slice(0, 2)];
+      return [word + altSfx, ...shuffle(pool).slice(0, 2)];
     }
+
+    // Wrong forms for inline ___ items: swap ы↔і + optionally restore original consonant
+    function genWordVariants(origWord, answeredWord) {
+      const altVowel = w => w.replace(/ы/g, '\x01').replace(/і/g, 'ы').replace(/\x01/g, 'і');
+      const results = new Set();
+
+      const v1 = altVowel(answeredWord);
+      if (v1.toLowerCase() !== answeredWord.toLowerCase()) results.add(v1);
+
+      // Check consonant change: origWord differs from the start of answeredWord
+      if (origWord && answeredWord.slice(0, origWord.length).toLowerCase() !== origWord.toLowerCase()) {
+        const sfx = answeredWord.slice(origWord.length);
+        const noChange     = origWord + sfx;
+        const noChangeAlt  = altVowel(noChange);
+        if (noChange.toLowerCase() !== answeredWord.toLowerCase())    results.add(noChange);
+        if (noChangeAlt.toLowerCase() !== answeredWord.toLowerCase()  &&
+            noChangeAlt.toLowerCase() !== noChange.toLowerCase())      results.add(noChangeAlt);
+      }
+      return [...results].slice(0, 3);
+    }
+
     function choiceOpts(correct) {
       const pool = ex.answers.filter(a => a.toLowerCase() !== correct.toLowerCase());
       return shuffle([correct, ...shuffle(pool.slice()).slice(0, 3)]);
     }
-    function choiceOptsSuffix(suffix) {
-      const pool = suffixPool().filter(s => s.toLowerCase() !== suffix.toLowerCase());
-      return shuffle([suffix, ...shuffle(pool).slice(0, 3)]);
-    }
-    function choiceBtns(opts, dataVals) {
-      return opts.map((o, k) => {
-        const v = dataVals ? dataVals[k] : o;
-        return `<button class="ke-choice-btn" data-val="${escHtml(v)}">${escHtml(o)}</button>`;
-      }).join('');
+    function choiceBtns(opts) {
+      return opts.map(o => `<button class="ke-choice-btn" data-val="${escHtml(o)}">${escHtml(o)}</button>`).join('');
     }
 
     if (hasWords) {
@@ -1676,22 +1682,33 @@
         }
       });
     } else if (hasItems) {
+      // pool of answered-words for fallback distractors
+      const answeredWordPool = ex.answers.map(a => lastWord(a));
+
       let choiceIdx = 0;
       ex.items.slice(0, MAX).forEach((item, i) => {
         if (item.includes('___')) {
           const [pre, post] = item.split('___');
-          const suffix = extractSuffix(pre, ex.answers[i]);
+          const answeredW   = lastWord(ex.answers[i]);
+          const origW       = lastWord(pre);
           if (choiceIdx < CHOICE_COUNT) {
-            const opts = choiceOptsSuffix(suffix);
+            let wrongs = genWordVariants(origW, answeredW);
+            // Fill remaining slots from answered-word pool
+            const extra = shuffle(answeredWordPool.filter(
+              w => w.toLowerCase() !== answeredW.toLowerCase() &&
+                   !wrongs.some(r => r.toLowerCase() === w.toLowerCase())
+            ));
+            while (wrongs.length < 3) wrongs.push(extra.shift() || '?');
+            const opts = shuffle([answeredW, ...wrongs.slice(0, 3)]);
             rowsHtml += `<div class="ke-row ke-inline">
               <span class="ke-frag">${escHtml(pre)}</span>
-              <div class="ke-choices ke-choices-inline" data-answer="${escHtml(suffix)}" data-i="${i}">${choiceBtns(opts)}</div>
+              <div class="ke-choices ke-choices-inline" data-answer="${escHtml(answeredW)}" data-i="${i}">${choiceBtns(opts)}</div>
               <span class="ke-frag">${escHtml(post || '')}</span>
             </div>`;
             choiceIdx++;
           } else {
             rowsHtml += `<div class="ke-row ke-inline">
-              <span class="ke-frag">${escHtml(pre)}</span><input class="ke-input ke-input-sm" data-answer="${escHtml(suffix)}" data-i="${i}" autocomplete="off" spellcheck="false"><span class="ke-frag">${escHtml(post || '')}</span>
+              <span class="ke-frag">${escHtml(pre)}</span><input class="ke-input ke-input-sm" data-answer="${escHtml(answeredW)}" data-i="${i}" autocomplete="off" spellcheck="false"><span class="ke-frag">${escHtml(post || '')}</span>
             </div>`;
           }
         } else {
